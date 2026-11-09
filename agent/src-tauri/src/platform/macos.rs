@@ -91,13 +91,10 @@ fn open_settings(anchor: &str) {
 }
 
 pub fn prepare() {
-    // Trigger the Screen Recording prompt once at startup; macOS remembers it.
-    if !screen_recording_granted() {
-        // SAFETY: no preconditions.
-        unsafe {
-            CGRequestScreenCaptureAccess();
-        }
-    }
+    // Deliberately does NOT prompt here. Screen Recording is requested from the
+    // first-run permission screen (the "Grant" button → request_permission).
+    // Prompting on every launch would re-pop the dialog each time the KeepAlive
+    // login agent relaunches us — an endless loop the user can't escape.
 }
 
 pub fn diagnostics() -> Vec<String> {

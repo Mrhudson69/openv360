@@ -47,6 +47,10 @@ function renderPermissions(s) {
     }),
   );
   $("perm-done").disabled = s.needsPermissions;
+  // When a required permission is still missing, macOS won't report the new
+  // grant until the process restarts — surface the restart path.
+  $("perm-hint").hidden = !s.needsPermissions;
+  $("perm-restart").hidden = !s.needsPermissions;
 }
 
 function render(s) {
@@ -134,6 +138,12 @@ $("auto").addEventListener("change", async (e) => {
 $("sync").addEventListener("click", () => invoke("sync_now"));
 $("perm-done").addEventListener("click", () => {
   if (window.__TAURI__.window) window.__TAURI__.window.getCurrentWindow().hide().catch(() => {});
+});
+$("perm-restart").addEventListener("click", async () => {
+  const btn = $("perm-restart");
+  btn.disabled = true;
+  btn.textContent = "Restarting…";
+  await invoke("restart_agent").catch(() => {});
 });
 $("signout").addEventListener("click", async () => {
   const btn = $("signout");

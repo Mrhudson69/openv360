@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Worklens</title>
+  <title>openv360</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main id="setup" hidden>
-    <div class="brand"><span class="logo"></span>Worklens</div>
+    <div class="brand"><span class="logo"></span>openv360</div>
     <h1>Connect this computer</h1>
     <p class="muted">Ask your administrator for your organisation's server address and a one-time enrollment code.</p>
     <form id="enroll-form">
@@ -24,17 +24,18 @@
   </main>
 
   <main id="permissions" hidden>
-    <div class="brand"><span class="logo"></span>Worklens</div>
+    <div class="brand"><span class="logo"></span>openv360</div>
     <h1>One-time permissions</h1>
-    <p class="muted">macOS needs your approval before Worklens can record. Grant the required items, then Worklens runs quietly in the menu bar.</p>
+    <p class="muted">macOS needs your approval before openv360 can record. Click <strong>Grant</strong>, enable openv360 in the window that opens, then come back here.</p>
     <ul class="perms" id="perm-list"></ul>
+    <p class="muted small" id="perm-hint" hidden>macOS only applies a new Screen Recording grant after openv360 restarts. Click <strong>Restart openv360</strong> below once you've enabled it.</p>
+    <button class="primary big" id="perm-restart" hidden>Restart openv360</button>
     <button class="primary big" id="perm-done" disabled>Finish</button>
-    <p class="muted small">After a change, reopen Worklens from the menu bar if an item still shows as not granted.</p>
   </main>
 
   <main id="home" hidden>
     <header>
-      <div class="brand"><span class="logo"></span>Worklens</div>
+      <div class="brand"><span class="logo"></span>openv360</div>
       <span class="pill" id="pill">Paused</span>
     </header>
 
