@@ -30,7 +30,9 @@ use tracker::{Sample, SegmentBuilder};
 const SAMPLE_EVERY: Duration = Duration::from_secs(5);
 const SYNC_EVERY: Duration = Duration::from_secs(60);
 /// How often to check for a newer agent build, after an initial short delay.
-const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(6 * 3600);
+/// Hourly so a published release rolls out across the fleet within ~1h (plus the
+/// server's short release-cache TTL) instead of lingering for hours.
+const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(3600);
 const UPDATE_FIRST_DELAY: Duration = Duration::from_secs(60);
 /// If the sync loop stops heartbeating for this long it has died or wedged (not
 /// merely failing — a down server still beats), so the watchdog restarts the
