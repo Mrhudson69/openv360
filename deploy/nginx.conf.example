@@ -1,0 +1,39 @@
+# Example nginx virtual host for openv360 running behind nginx.
+# Put this in your nginx config (sites-available / conf.d) and reload nginx.
+#
+# Two ways to reach the openv360 server container:
+#   A) Shared docker network (recommended): proxy_pass http://openv360:8080;
+#      (use deploy/docker-compose.proxy.yml so the server joins your proxy's network)
+#   B) Server published on the host (SERVER_BIND=127.0.0.1): proxy_pass http://127.0.0.1:8080;
+
+upstream openv360 {
+    server openv360:8080;        # (A) shared network alias; or 127.0.0.1:8080 for (B)
+}
+
+server {
+    listen 80;
+    server_name v360.example.com;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name v360.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/v360.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/v360.example.com/privkey.pem;
+
+    # IMPORTANT: screenshots upload up to ~10 MB; nginx default is 1 MB.
+    client_max_body_size 25m;
+
+    location / {
+        proxy_pass         http://openv360;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;   # https -> server generates https install commands
+        proxy_set_header   X-Forwarded-Host  $host;
+        proxy_read_timeout 120s;
+    }
+}
