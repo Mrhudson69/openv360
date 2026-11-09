@@ -41,7 +41,7 @@ windows = { version = "0.62.2", features = ["Win32_UI_Input_KeyboardAndMouse", "
 ashpd = { version = "0.14.0", default-features = false, features = ["async-io", "screenshot"] }
 url = "2.5.8"
 x11rb = { version = "0.14.0", features = ["screensaver"] }
-zbus = "6"
+zbus = { version = "6", features = ["blocking"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 xcap = "0.9.9"
