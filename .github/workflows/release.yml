@@ -97,3 +97,39 @@ jobs:
           releaseDraft: true
           prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           args: ${{ matrix.args }}
+
+  # tauri-action names assets like `openv360_0.1.0_amd64.deb`, but the server and
+  # one-line installers fetch stable, version-less names (`openv360-agent_amd64.deb`,
+  # …). Mirror the built assets under those names so `install.sh` /
+  # `/downloads` → GitHub-releases redirects resolve.
+  stable-asset-names:
+    name: publish installer-friendly asset names
+    needs: build-agent
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Mirror release assets under installer names
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          mkdir -p dl out
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dl --pattern 'openv360_*' || true
+          copy() {
+            local src
+            src=$(ls dl/$1 2>/dev/null | head -1 || true)
+            if [ -n "${src:-}" ] && [ -f "$src" ]; then cp "$src" "out/$2"; echo "  $src -> $2"; fi
+          }
+          copy 'openv360_*_amd64.deb'           openv360-agent_amd64.deb
+          copy 'openv360_*_arm64.deb'           openv360-agent_arm64.deb
+          copy 'openv360_*_amd64.AppImage'      openv360-agent_x86_64.AppImage
+          copy 'openv360_*universal.app.tar.gz' openv360-agent_macos-universal.app.tar.gz
+          copy 'openv360_*_x64-setup.exe'       openv360-agent_x64-setup.exe
+          if ls out/* >/dev/null 2>&1; then
+            gh release upload "$TAG" out/* --clobber --repo "$GITHUB_REPOSITORY"
+            echo "mirrored:"; ls -1 out/
+          else
+            echo "no matching assets found to mirror"; exit 1
+          fi
