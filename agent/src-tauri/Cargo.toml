@@ -50,3 +50,8 @@ xcap = "0.9.9"
 lto = true
 opt-level = "s"
 strip = true
+# Any panic aborts the process instead of silently killing one async task and
+# leaving the agent half-dead. The service manager (systemd Restart=always /
+# launchd KeepAlive) then relaunches a clean process, so the agent self-heals and
+# can never get wedged offline. Queued data lives in SQLite, so nothing is lost.
+panic = "abort"
