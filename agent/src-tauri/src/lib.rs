@@ -625,6 +625,15 @@ fn request_permission(app: AppHandle, key: String) -> StateView {
     agent.view()
 }
 
+/// Relaunch the agent. macOS caches the Screen Recording check per process, so a
+/// newly-granted permission is only seen after a restart; the KeepAlive login
+/// agent (macOS/Windows) or the systemd service (Linux) brings it back up.
+#[tauri::command]
+fn restart_agent(app: AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move { shutdown(&app).await });
+}
+
 #[tauri::command]
 async fn enroll(app: AppHandle, server_url: String, code: String) -> Result<StateView, String> {
     enroll_and_start(&app, PendingEnrollment { server_url, code }).await?;
@@ -790,7 +799,13 @@ pub fn run() {
                     }
                 });
                 show_window(&handle);
-            } else if !enrolled || !launched_by_autostart {
+            } else if !enrolled || !launched_by_autostart
+                || platform::permissions().iter().any(|p| p.required && !p.granted)
+            {
+                // Also surface the window when a required OS permission (macOS
+                // Screen Recording) is still missing, so the user can grant it —
+                // otherwise an autostarted, enrolled agent would stay hidden with
+                // no way to complete setup.
                 show_window(&handle);
             }
             spawn_loops(handle.clone());
@@ -808,6 +823,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_state,
             request_permission,
+            restart_agent,
             enroll,
             set_clocked_in,
             set_auto_clock_in,
