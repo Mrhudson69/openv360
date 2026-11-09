@@ -46,7 +46,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # The agent's package.json provides @tauri-apps/cli, which tauri-action invokes.
       - name: Setup Node 20
