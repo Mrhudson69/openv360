@@ -15,7 +15,7 @@
 # Re-running is safe: it updates the code and keeps existing data and secrets.
 set -euo pipefail
 
-OPENV360_REPO="${OPENV360_REPO:-https://github.com/CHANGE-ME/openv360.git}"
+OPENV360_REPO="${OPENV360_REPO:-https://github.com/Mrhudson69/openv360.git}"
 OPENV360_BRANCH="${OPENV360_BRANCH:-main}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/openv360}"
 ASSUME_YES=0
