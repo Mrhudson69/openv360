@@ -67,7 +67,7 @@ function keysFor(os: Os, arch: Arch): string[] {
  * then falls back to the server's own version, i.e. a no-op).
  */
 const ghCache: { version: string | null; at: number } = { version: null, at: 0 };
-const GH_TTL_MS = 60 * 60 * 1000;
+const GH_TTL_MS = 15 * 60 * 1000;
 
 function githubRepoSlug(url: string | undefined): string | null {
   if (!url) return null;
