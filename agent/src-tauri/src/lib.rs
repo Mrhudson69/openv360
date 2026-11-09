@@ -34,6 +34,11 @@ const SYNC_EVERY: Duration = Duration::from_secs(60);
 /// server's short release-cache TTL) instead of lingering for hours.
 const UPDATE_CHECK_EVERY: Duration = Duration::from_secs(3600);
 const UPDATE_FIRST_DELAY: Duration = Duration::from_secs(60);
+/// If the sync loop stops heartbeating for this long it has died or wedged (not
+/// merely failing — a down server still beats), so the watchdog restarts the
+/// process. Queued data is on disk, so a restart loses nothing.
+const WATCHDOG_STALE: Duration = Duration::from_secs(5 * 60);
+const WATCHDOG_CHECK: Duration = Duration::from_secs(60);
 
 pub fn now_ms() -> i64 {
     std::time::SystemTime::now()
@@ -74,6 +79,11 @@ pub struct Agent {
     status: Mutex<Status>,
     wake_sync: tokio::sync::Notify,
     tray_items: Mutex<Option<TrayItems>>,
+    /// Lock-free heartbeat: epoch-ms stamped at the top of every sync-loop
+    /// iteration. The watchdog restarts the process if this goes stale, which
+    /// means the loop task died or wedged. It is an atomic (never a lock) so the
+    /// watchdog keeps working even if a mutex elsewhere got poisoned by a panic.
+    sync_beat_ms: std::sync::atomic::AtomicI64,
 }
 
 struct TrayItems {
@@ -122,7 +132,14 @@ impl Agent {
             status: Mutex::new(Status::default()),
             wake_sync: tokio::sync::Notify::new(),
             tray_items: Mutex::new(None),
+            sync_beat_ms: std::sync::atomic::AtomicI64::new(now_ms()),
         })
+    }
+
+    /// Stamp the sync-loop heartbeat (called once per loop iteration).
+    fn beat(&self) {
+        self.sync_beat_ms
+            .store(now_ms(), std::sync::atomic::Ordering::Relaxed);
     }
 
     fn save_config(&self, cfg: &Config) {
@@ -527,6 +544,7 @@ fn spawn_loops(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let agent = a.state::<Arc<Agent>>().inner().clone();
         loop {
+            agent.beat(); // heartbeat for the watchdog — proves this loop is alive
             if agent.config.lock().unwrap().is_enrolled() {
                 let mut result = agent.sync().await;
                 if result.is_ok() {
@@ -537,17 +555,20 @@ fn spawn_loops(app: AppHandle) {
                 match result {
                     Ok(()) => {
                         let mut s = agent.status.lock().unwrap();
-                        if s.last_error.as_deref().is_some_and(|e| e.starts_with("Sync")) {
+                        if s.last_error.as_deref().is_some_and(|e| e.starts_with("Sync") || e.starts_with("Reconnecting")) {
                             s.last_error = None;
                         }
                     }
                     Err(api::ApiError::Unauthorized) => {
-                        log::warn!("device token rejected; signing out");
-                        agent.unenroll();
-                        agent.set_error(Some(
-                            "This device was removed by your administrator. Enter a new enrollment code to continue.".into(),
-                        ));
-                        show_window(&a);
+                        // NEVER auto-unenroll on a 401. A server restart, redeploy,
+                        // reverse-proxy, or a multi-day outage can all return 401,
+                        // and none of them mean the device was removed. We keep the
+                        // enrollment and all queued data, and keep retrying forever;
+                        // when the server returns, the backlog flushes. A device is
+                        // only ever removed by the explicit "Uninstall agent"
+                        // command or a local sign-out — never on its own.
+                        log::warn!("server returned 401; keeping enrollment and retrying");
+                        agent.set_error(Some("Reconnecting to the server…".into()));
                     }
                     Err(e) => {
                         log::warn!("sync failed: {e}");
@@ -576,6 +597,28 @@ fn spawn_loops(app: AppHandle) {
             }
             notify_ui(&a);
             tokio::time::sleep(UPDATE_CHECK_EVERY).await;
+        }
+    });
+
+    // Watchdog: an enrolled agent that stops making sync progress for too long
+    // (a panicked task, a wedged connection, any unknown stuck state) is forced
+    // to restart via the service manager, so it can never remain silently offline.
+    let a = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let agent = a.state::<Arc<Agent>>().inner().clone();
+        loop {
+            tokio::time::sleep(WATCHDOG_CHECK).await;
+            // Only an atomic read — no mutex — so the watchdog survives even a
+            // poisoned lock. If the sync loop stopped heartbeating, it died or
+            // wedged; exit so the service manager relaunches a healthy process.
+            // (A server that is merely down keeps the loop beating, so this does
+            // NOT fire during outages — the loop just keeps retrying.)
+            let beat = agent.sync_beat_ms.load(std::sync::atomic::Ordering::Relaxed);
+            let stale_ms = (now_ms() - beat).max(0) as u64;
+            if stale_ms >= WATCHDOG_STALE.as_secs() * 1000 {
+                log::error!("watchdog: sync loop silent for {stale_ms}ms; restarting process");
+                std::process::exit(1);
+            }
         }
     });
 
