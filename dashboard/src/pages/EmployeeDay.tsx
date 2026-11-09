@@ -23,11 +23,13 @@ const MIN_DURATIONS: { label: string; ms: number }[] = [
   { label: "≥ 5m", ms: 300e3 },
 ];
 
-export function EmployeeDayPage(props: { id: string; date: string | null }) {
+export function EmployeeDayPage(props: { id: string; date: string | null; isOwner?: boolean }) {
   const date = props.date ?? localISODate();
   const [data, setData] = useState<DayData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null);
+  // Apps the user just classified as productive org-wide, for inline feedback.
+  const [addedApps, setAddedApps] = useState<Record<string, "saving" | "done">>({});
 
   // Filters.
   const [cats, setCats] = useState<Set<Cat>>(new Set(ALL_CATS));
@@ -138,6 +140,18 @@ export function EmployeeDayPage(props: { id: string; date: string | null }) {
         return { ...d, screenshots };
       });
     } catch (e) { setError((e as Error).message); }
+  }
+
+  async function markProductive(app: string) {
+    setAddedApps((m) => ({ ...m, [app]: "saving" }));
+    try {
+      await api("/api/app-rules", { method: "POST", body: { pattern: app, category: "productive", teamId: null } });
+      setAddedApps((m) => ({ ...m, [app]: "done" }));
+      await load(); // recolour the bars with the new rule
+    } catch (e) {
+      setAddedApps((m) => { const n = { ...m }; delete n[app]; return n; });
+      setError((e as Error).message);
+    }
   }
 
   const t = data?.totals;
@@ -253,16 +267,31 @@ export function EmployeeDayPage(props: { id: string; date: string | null }) {
                 apps.length === 0 ? <EmptyState icon={<Icon.AppWindow size={22} />} text="No app usage yet." /> : (
                   <>
                     <ul className="bars">
-                      {apps.slice(0, 15).map((a) => (
+                      {apps.slice(0, 15).map((a) => {
+                        const added = addedApps[a.app];
+                        const isProductive = a.category === "productive" || added === "done";
+                        return (
                         <li key={a.app}>
                           <button className={`bar-label bar-link${appFilter === a.app ? " on" : ""}`} onClick={() => { setAppFilter(appFilter === a.app ? "" : a.app); setTab("activity"); }} title={`Filter the activity log by ${a.app}`} aria-pressed={appFilter === a.app}>
                             <span>{a.app}</span><span className="muted tnum">{duration(a.ms)}</span>
                           </button>
-                          <div className="bar"><div className={`bar-fill cat-${a.category}`} style={{ width: `${Math.max((a.ms / maxApp) * 100, 1)}%` }} /></div>
+                          <div className="bar-row">
+                            <div className="bar"><div className={`bar-fill cat-${a.category}`} style={{ width: `${Math.max((a.ms / maxApp) * 100, 1)}%` }} /></div>
+                            {props.isOwner && (
+                              isProductive ? (
+                                <span className="app-add is-done" title="Marked productive org-wide"><Icon.Check size={14} /></span>
+                              ) : (
+                                <button className="app-add" disabled={added === "saving"} title={`Mark “${a.app}” as productive for the whole organization`} aria-label={`Mark ${a.app} as productive org-wide`} onClick={() => markProductive(a.app)}>
+                                  <Icon.Plus size={14} />
+                                </button>
+                              )
+                            )}
+                          </div>
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
-                    <p className="hint">Click an app to filter the activity log. Colors come from <Link to="/settings">Settings</Link>.</p>
+                    <p className="hint">Click an app to filter the activity log.{props.isOwner && <> Use <strong>+</strong> to mark an app as productive for the whole organization.</>} Colors come from <Link to="/settings">Settings</Link>.</p>
                   </>
                 )
               )}

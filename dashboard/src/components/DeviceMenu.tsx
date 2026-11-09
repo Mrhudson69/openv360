@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api, type Device } from "../api";
 import { confirmDialog } from "./confirm";
 import { relative } from "../format";
@@ -8,13 +9,33 @@ type Action = { label: string; run: () => Promise<unknown>; confirm?: string; da
 
 export function DeviceMenu(props: { device: Device; onChanged: () => void; onError: (m: string) => void }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { device: d } = props;
   const online = !!d.lastSeenAt && Date.now() - d.lastSeenAt < ONLINE_MS;
 
+  // Position the menu with fixed coordinates anchored to the button, so it
+  // isn't clipped by the table card's overflow:auto scroll container.
+  useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    const place = () => {
+      const r = btnRef.current!.getBoundingClientRect();
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
-    const on = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const on = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", on);
     document.addEventListener("keydown", esc);
@@ -55,10 +76,10 @@ export function DeviceMenu(props: { device: Device; onChanged: () => void; onErr
   }
 
   return (
-    <div className="device-menu" ref={ref}>
-      <button className="chip-x menu-dots" aria-label={`Manage ${d.hostname}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>⋯</button>
-      {open && (
-        <div className="menu" role="menu">
+    <div className="device-menu">
+      <button ref={btnRef} className="chip-x menu-dots" aria-label={`Manage ${d.hostname}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>⋯</button>
+      {open && pos && createPortal(
+        <div className="menu menu-fixed" role="menu" ref={menuRef} style={{ top: pos.top, right: pos.right }}>
           <div className="menu-head">
             <span className={`status-dot ${online ? "on" : "off"}`} />
             <div>
@@ -69,7 +90,8 @@ export function DeviceMenu(props: { device: Device; onChanged: () => void; onErr
           {actions.map((a) => (
             <button key={a.label} role="menuitem" className={a.danger ? "danger" : ""} onClick={() => run(a)}>{a.label}</button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

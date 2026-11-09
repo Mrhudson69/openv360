@@ -238,6 +238,12 @@ label.disabled { opacity: 0.5; }
 .bar-label span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bar { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: 4px; }
+.bar-row { display: flex; align-items: center; gap: 8px; }
+.bar-row .bar { flex: 1; }
+.app-add { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--muted); cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease; }
+.app-add:hover:not(:disabled) { color: var(--ok, #16a34a); border-color: var(--ok, #16a34a); background: color-mix(in srgb, var(--ok, #16a34a) 10%, transparent); }
+.app-add:disabled { opacity: 0.5; cursor: default; }
+.app-add.is-done { color: var(--ok, #16a34a); border-color: transparent; background: none; cursor: default; }
 .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; min-width: 2px; }
 
 .events { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-variant-numeric: tabular-nums; }
@@ -292,7 +298,10 @@ label.disabled { opacity: 0.5; }
 
 .device-menu { position: relative; display: inline-flex; }
 .menu-dots { font-size: 14px; }
-.menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 20; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18); padding: 4px; min-width: 190px; display: grid; }
+.menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 50; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18); padding: 4px; min-width: 190px; display: grid; }
+/* Portaled to <body> and anchored with fixed coords so the table card's
+   overflow:auto can't clip it. */
+.menu.menu-fixed { position: fixed; top: auto; z-index: 1000; }
 .menu button { text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; white-space: nowrap; }
 .menu button:hover { background: var(--surface-2); }
 .menu button.danger { color: var(--danger); }

@@ -11,6 +11,7 @@ mod api;
 mod uninstall;
 mod capture;
 mod config;
+mod meeting;
 mod platform;
 mod store;
 mod tracker;
@@ -461,11 +462,15 @@ fn spawn_loops(app: AppHandle) {
             .await;
             let Ok((win, idle)) = sampled else { continue };
             let win = win.unwrap_or_default();
+            // A live call (Zoom/Meet/Teams/etc.) counts as working even when the
+            // user is only listening and generating no keyboard/mouse input.
+            let meeting = meeting::is_meeting(&win.app, &win.title);
             let sample = Sample {
                 at: now_ms(),
                 idle_ms: idle.unwrap_or(0),
                 app: win.app,
                 title: if titles { win.title } else { String::new() },
+                meeting,
             };
             let done = agent.builder.lock().unwrap().push(&sample, idle_threshold_ms);
             for seg in done {

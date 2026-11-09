@@ -10,6 +10,12 @@ const base = (size: number): React.SVGProps<SVGSVGElement> => ({
 export const ArrowLeft = ({ size = 16, className }: P) => (
   <svg {...base(size)} className={className}><path d="M19 12H5" /><path d="m12 19-7-7 7-7" /></svg>
 );
+export const Plus = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}><path d="M12 5v14" /><path d="M5 12h14" /></svg>
+);
+export const Check = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}><path d="M20 6 9 17l-5-5" /></svg>
+);
 export const ChevronLeft = ({ size = 18, className }: P) => (
   <svg {...base(size)} className={className}><path d="m15 18-6-6 6-6" /></svg>
 );
