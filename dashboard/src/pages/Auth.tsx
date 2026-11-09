@@ -6,6 +6,7 @@ export function AuthPage(props: { needsSetup: boolean; orgName: string; onAuthed
   const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const setup = props.needsSetup;
@@ -14,6 +15,7 @@ export function AuthPage(props: { needsSetup: boolean; orgName: string; onAuthed
     e.preventDefault();
     setError(null);
     if (setup && password.length < 8) return setError("Use at least 8 characters for the password.");
+    if (setup && !agree) return setError("Please acknowledge the responsible-use terms to continue.");
     setBusy(true);
     try {
       const res = await api<{ token: string; user: User }>(setup ? "/api/auth/setup" : "/api/auth/login", {
@@ -44,6 +46,12 @@ export function AuthPage(props: { needsSetup: boolean; orgName: string; onAuthed
         )}
         <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus={!setup} autoComplete="username" /></label>
         <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete={setup ? "new-password" : "current-password"} /></label>
+        {setup && (
+          <label className="legal-check">
+            <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+            <span>I will use openv360 <strong>lawfully and transparently</strong> — on devices I'm authorized to monitor, with the people being monitored informed as required by law. I accept the <a href="https://github.com/Mrhudson69/openv360/blob/main/DISCLAIMER.md" target="_blank" rel="noopener noreferrer">responsible-use terms</a> and understand the maintainers accept no liability for how I use it.</span>
+          </label>
+        )}
         {error && <div className="error" role="alert">{error}</div>}
         <button className="btn btn-primary btn-block" disabled={busy}>{busy ? "Please wait…" : setup ? "Create account" : "Sign in"}</button>
       </form>
