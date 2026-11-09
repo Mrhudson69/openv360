@@ -1,0 +1,23 @@
+# Run openv360 behind your OWN reverse proxy (nginx, Traefik, …) instead of the
+# bundled Caddy. See docs/deployment/reverse-proxy.md.
+#
+# Usage (no Caddy):
+#   COMPOSE_FILE=docker-compose.yml:deploy/docker-compose.proxy.yml   # in .env
+#   PROXY_NETWORK=<your reverse proxy's docker network>               # in .env
+#   docker compose up -d --build
+#
+# This attaches the server to your proxy's EXISTING external network with the
+# alias `openv360`, so the proxy can `proxy_pass http://openv360:8080`.
+# With SERVER_BIND=127.0.0.1 (the default this setup writes) the port is also
+# published on loopback only, so nothing is exposed to the public internet.
+services:
+  server:
+    networks:
+      default: {}
+      edge:
+        aliases: [openv360]
+
+networks:
+  edge:
+    external: true
+    name: ${PROXY_NETWORK:-edge}   # set PROXY_NETWORK in .env to your reverse proxy's docker network
