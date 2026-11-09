@@ -18,7 +18,7 @@ hex = "0.4.3"
 image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 log = "0.4.35"
 semver = "1.0.28"
-sha2 = "0.10.9"
+sha2 = "0.11.1"
 os_info = "3.15.0"
 reqwest = { version = "0.13.5", default-features = false, features = ["json", "multipart", "rustls", "http2"] }
 rusqlite = { version = "0.41.1", features = ["bundled"] }
@@ -50,3 +50,8 @@ xcap = "0.9.9"
 lto = true
 opt-level = "s"
 strip = true
+# Any panic aborts the process instead of silently killing one async task and
+# leaving the agent half-dead. The service manager (systemd Restart=always /
+# launchd KeepAlive) then relaunches a clean process, so the agent self-heals and
+# can never get wedged offline. Queued data lives in SQLite, so nothing is lost.
+panic = "abort"
