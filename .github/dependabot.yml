@@ -1,0 +1,63 @@
+# Dependabot keeps openv360's dependencies up to date.
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+version: 2
+updates:
+  # --- npm: server ---
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "server"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # --- npm: dashboard ---
+  - package-ecosystem: "npm"
+    directory: "/dashboard"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "dashboard"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # --- npm: agent (Tauri CLI / JS tooling) ---
+  - package-ecosystem: "npm"
+    directory: "/agent"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "agent"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # --- cargo: agent Rust backend ---
+  - package-ecosystem: "cargo"
+    directory: "/agent/src-tauri"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "agent"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # --- GitHub Actions workflows ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"

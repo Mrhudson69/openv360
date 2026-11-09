@@ -1,0 +1,6 @@
+# Headless Ubuntu desktop with real GUI apps, for generating demo activity.
+ARG UBUNTU=24.04
+FROM worklens-agent-build:${UBUNTU}
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      xvfb dbus-x11 openbox x11-apps xterm xdotool wmctrl \
+    && rm -rf /var/lib/apt/lists/*

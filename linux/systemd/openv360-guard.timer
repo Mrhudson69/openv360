@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodically re-assert the openv360 agent
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=60
+AccuracySec=10
+
+[Install]
+WantedBy=timers.target

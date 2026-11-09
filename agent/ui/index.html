@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Worklens</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="setup" hidden>
+    <div class="brand"><span class="logo"></span>Worklens</div>
+    <h1>Connect this computer</h1>
+    <p class="muted">Ask your administrator for your organisation's server address and a one-time enrollment code.</p>
+    <form id="enroll-form">
+      <label>Server address
+        <input id="server" placeholder="track.example.com" autocomplete="url" required />
+      </label>
+      <label>Enrollment code
+        <input id="code" placeholder="ABCD-EFGH" autocomplete="off" spellcheck="false" required />
+      </label>
+      <button type="submit" class="primary" id="enroll-btn">Connect</button>
+    </form>
+    <p class="error" id="setup-error" hidden></p>
+  </main>
+
+  <main id="permissions" hidden>
+    <div class="brand"><span class="logo"></span>Worklens</div>
+    <h1>One-time permissions</h1>
+    <p class="muted">macOS needs your approval before Worklens can record. Grant the required items, then Worklens runs quietly in the menu bar.</p>
+    <ul class="perms" id="perm-list"></ul>
+    <button class="primary big" id="perm-done" disabled>Finish</button>
+    <p class="muted small">After a change, reopen Worklens from the menu bar if an item still shows as not granted.</p>
+  </main>
+
+  <main id="home" hidden>
+    <header>
+      <div class="brand"><span class="logo"></span>Worklens</div>
+      <span class="pill" id="pill">Paused</span>
+    </header>
+
+    <section class="hero">
+      <div class="muted small" id="who"></div>
+      <div class="today" id="today">0h 00m</div>
+      <div class="muted small">active today</div>
+      <button class="primary big" id="toggle">Clock in</button>
+    </section>
+
+    <div class="notice warn" id="diagnostics" hidden></div>
+    <div class="notice error" id="home-error" hidden></div>
+
+    <section class="card">
+      <h2>What's being recorded</h2>
+      <ul class="recorded" id="recorded"></ul>
+      <p class="muted small">Only while you're clocked in. Your administrator can see this data.</p>
+    </section>
+
+    <section class="card rows">
+      <div><span>Next screenshot</span><span id="next-shot">—</span></div>
+      <div><span>Last screenshot</span><span id="last-shot">—</span></div>
+      <div><span>Last synced</span><span id="last-sync">—</span></div>
+      <div><span>Waiting to upload</span><span id="pending">0</span></div>
+    </section>
+
+    <label class="switch">
+      <input type="checkbox" id="auto" />
+      <span>Start tracking automatically when I log in</span>
+    </label>
+
+    <footer>
+      <span class="muted small" id="server-label"></span>
+      <span>
+        <button class="link" id="sync">Sync now</button>
+        <button class="link" id="signout">Disconnect</button>
+      </span>
+    </footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

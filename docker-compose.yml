@@ -1,0 +1,43 @@
+# Worklens server stack. Configure via a .env file next to this file (see .env.example).
+name: worklens
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: worklens
+      POSTGRES_DB: worklens
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-worklens}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U worklens -d worklens"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  server:
+    build: .
+    image: worklens-server:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Password is passed separately so special characters never need URL-encoding.
+      DATABASE_URL: postgres://worklens@db:5432/worklens
+      PGPASSWORD: ${POSTGRES_PASSWORD:-worklens}
+      DATA_DIR: /data
+      PORT: "8080"
+    ports:
+      - "${SERVER_BIND:-0.0.0.0}:8080:8080"
+    volumes:
+      - server-data:/data
+
+volumes:
+  db-data:
+  server-data:

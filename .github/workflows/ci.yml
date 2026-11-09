@@ -1,0 +1,136 @@
+# Continuous integration for openv360.
+#
+# Three independent jobs — server, dashboard, agent — run on every push and pull
+# request to main. These are the status checks branch protection requires, so the
+# job names below (`server`, `dashboard`, `agent`) are the ones to select there.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Server: typecheck + test against a real PostgreSQL.
+  # ---------------------------------------------------------------------------
+  server:
+    name: server
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: openv360
+          POSTGRES_PASSWORD: openv360
+          POSTGRES_DB: openv360_test
+        ports:
+          - 5432:5432
+        # Wait until Postgres is accepting connections before the job starts.
+        options: >-
+          --health-cmd "pg_isready -U openv360 -d openv360_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://openv360:openv360@localhost:5432/openv360_test
+      PGPASSWORD: openv360
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: server
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Test
+        working-directory: server
+        run: npm test
+
+  # ---------------------------------------------------------------------------
+  # Dashboard: typecheck + production build.
+  # ---------------------------------------------------------------------------
+  dashboard:
+    name: dashboard
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+
+      - name: Install dependencies
+        working-directory: dashboard
+        run: npm ci
+
+      - name: Build
+        working-directory: dashboard
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Agent: Rust tests + clippy (no bundling, so only the dev libs are needed).
+  # ---------------------------------------------------------------------------
+  agent:
+    name: agent
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: agent/src-tauri
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libxdo-dev \
+            build-essential \
+            pkg-config
+
+      - name: Test
+        working-directory: agent/src-tauri
+        run: cargo test
+
+      - name: Clippy
+        working-directory: agent/src-tauri
+        run: cargo clippy --all-targets -- -D warnings

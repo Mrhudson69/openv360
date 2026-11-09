@@ -1,0 +1,59 @@
+name: Feature request
+description: Suggest an idea or improvement for openv360
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! For open-ended ideas or questions, consider starting a [Discussion](https://github.com/Mrhudson69/openv360/discussions) instead.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I searched existing issues and this has not already been requested.
+          required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Area
+      description: Which part of openv360 does this relate to?
+      options:
+        - Agent (desktop)
+        - Server (API)
+        - Dashboard (admin UI)
+        - Deploy / installer
+        - Docs
+        - Other / cross-cutting
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem would this solve? What are you trying to do?
+      placeholder: "I'm always frustrated when..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe what you'd like to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you've considered.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Mockups, links, or anything else that helps explain the request.
+    validations:
+      required: false

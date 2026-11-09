@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/data
+**/target
+.git
+.claude
+agent
+linux
+*.log
+.env

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Discussions
+    url: https://github.com/Mrhudson69/openv360/discussions
+    about: Ask questions, share ideas, and get help from the community. Please use Discussions instead of opening an issue for general questions.
+  - name: Security vulnerability
+    url: https://github.com/Mrhudson69/openv360/security/advisories/new
+    about: Report security vulnerabilities privately. Do not open a public issue.

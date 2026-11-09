@@ -1,0 +1,8 @@
+{
+  "uuid": "openv360@openv360.org",
+  "name": "openv360 Agent Helper",
+  "description": "Lets the openv360 time-tracking agent read the focused window and take screenshots on Wayland. Only the openv360 agent may call it. Installed and used by the openv360 agent.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "url": "https://github.com/openv360/openv360",
+  "version": 1
+}

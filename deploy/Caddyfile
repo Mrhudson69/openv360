@@ -1,0 +1,9 @@
+# Reverse proxy in front of the openv360 server.
+# SITE_ADDRESS is a domain (automatic HTTPS via Let's Encrypt) or ":80" (plain HTTP).
+{$SITE_ADDRESS} {
+	encode zstd gzip
+	request_body {
+		max_size 25MB
+	}
+	reverse_proxy server:8080
+}

@@ -1,0 +1,17 @@
+# Per-user openv360 agent. Installed to ~/.config/systemd/user/ by the installer.
+# Runs in the user's graphical session (needed for screenshots and window info).
+[Unit]
+Description=openv360 activity agent
+After=graphical-session.target
+PartOf=graphical-session.target
+# Always restart, with no rate limit, so killing the process just relaunches it.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=__OPENV360_BIN__ --autostart --service
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,4 @@
+# Headless Ubuntu desktop (Xvfb + D-Bus) for end-to-end agent tests.
+FROM worklens-agent-build:24.04
+RUN apt-get update && apt-get install -y --no-install-recommends xvfb dbus-x11 x11-apps openbox \
+    && rm -rf /var/lib/apt/lists/*

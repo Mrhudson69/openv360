@@ -1,0 +1,6 @@
+[Unit]
+Description=Keep the openv360 agent enabled for all users
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/openv360/openv360-guard.sh

@@ -1,0 +1,97 @@
+name: Bug report
+description: Report a problem with the openv360 agent, server, or dashboard
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report!
+
+        **Security issue?** Please do **not** file it here — follow our [security policy](https://github.com/Mrhudson69/openv360/blob/main/SECURITY.md) instead.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I searched existing issues and this has not already been reported.
+          required: true
+        - label: I am running the latest version of openv360.
+          required: false
+        - label: This is not a security vulnerability (those go through the security policy).
+          required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Which part of openv360 is affected?
+      options:
+        - Agent (desktop)
+        - Server (API)
+        - Dashboard (admin UI)
+        - Deploy / installer
+        - Docs
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear and concise description of the bug.
+      placeholder: Tell us what you see.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the problem?
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: openv360 version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system (for agent issues)
+      options:
+        - Windows
+        - macOS
+        - Linux (Ubuntu 24.04)
+        - Linux (Ubuntu 26.04)
+        - Linux (other)
+        - N/A
+    validations:
+      required: false
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Browser (for dashboard), server OS, Docker/Compose versions, Wayland/X11, etc.
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Paste any logs, error messages, or screenshots. Please redact secrets and personal data.
+      render: shell
+    validations:
+      required: false

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data/
+target/
+.env
+.env.*
+*.log
+.DS_Store
+!.env.example
+
+# Local editor/agent state (not part of the project)
+.claude/
+*.key
