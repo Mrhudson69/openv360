@@ -629,3 +629,9 @@ select:hover { border-color: color-mix(in srgb, var(--primary) 40%, var(--border
 .inline-field { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
 .inline-field select { width: auto; }
 @media (max-width: 640px) { .smtp-grid { grid-template-columns: 1fr; } }
+
+/* Legal acknowledgment on setup */
+.legal-check { display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-weight: 400; }
+.legal-check input { margin-top: 2px; flex: none; }
+.legal-check a { color: var(--primary); }
+.legal-check strong { color: var(--text); font-weight: 600; }

@@ -171,14 +171,24 @@ openv360/
 
 openv360 is **employee-monitoring software**, and it is built to be used transparently and lawfully.
 
-- **Hashing** — Admin passwords are hashed with **scrypt**; device and session tokens are **SHA-256-hashed** at rest.
+- **Hashing & encryption** — Admin passwords use **scrypt** (random salt + constant-time compare); device and session tokens are **SHA-256-hashed**; the SMTP password is **AES-256-GCM encrypted at rest**.
 - **Transport** — The deployment path provisions **automatic HTTPS** (Caddy + Let's Encrypt), so agent-to-server traffic is encrypted.
 - **Transparency** — The agent is **always visible** in the system tray, records **only while clocked in**, and does **not** hide its process or capture covertly.
 - **Data ownership** — Everything is stored on **your** server: activity in PostgreSQL, screenshots on disk, with configurable **retention**.
 
-> **Legal / consent note:** Monitoring laws vary significantly by country, state, and region, and many require **disclosure to and/or consent from** the people being monitored. openv360 is intended for **employer-managed devices with employees' knowledge**. You are responsible for deploying it in compliance with the laws that apply to you — disclose monitoring to your employees and configure screenshots/retention accordingly.
-
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
+
+## ⚖️ Legal & responsible use
+
+> **openv360 is for transparent, lawful workplace monitoring only. You are solely responsible for how you use it, and the maintainers accept no liability for your use.**
+
+- **No warranty, no liability.** The software is provided "as is" under the [MIT License](LICENSE). The authors, maintainers, and contributors are **not responsible or liable** for how you deploy or use openv360, for the data you collect, or for any legal consequences, disputes, or damages arising from your use. **You use it at your own risk.**
+- **Lawful use is your responsibility.** Monitoring, recording, and data-protection laws vary by country, state, and region (e.g. GDPR, CCPA/CPRA, ECPA/wiretap and two-party-consent laws, works-council rules). Many **require that you inform, and in some cases obtain consent from, the people being monitored.** You are the data controller and must comply with every law that applies to you.
+- **Intended use.** Employer-managed devices, monitored employees who **know** it is running. openv360 is built to be visible on purpose.
+- **Prohibited.** Covert surveillance, stalkerware, or monitoring any person/device you are not legally authorized to monitor.
+- **Not legal advice.** Consult a qualified lawyer before deploying workplace monitoring.
+
+**Full terms: [DISCLAIMER.md](DISCLAIMER.md).** By using openv360 you agree to them.
 
 ## Contributing
 
