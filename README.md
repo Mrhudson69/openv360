@@ -90,6 +90,8 @@ curl -fsSL https://raw.githubusercontent.com/Mrhudson69/openv360/main/deploy/set
 
 This installs Docker, PostgreSQL, the openv360 server and dashboard, and provisions **automatic HTTPS** (Caddy + Let's Encrypt). It asks for your organization name, domain, and the first admin account, then prints your dashboard URL.
 
+> **Already run nginx / Traefik / another reverse proxy?** Add `--no-caddy` to skip the bundled Caddy and run openv360 behind your proxy: `… | sudo bash -s -- --no-caddy`. See the [reverse-proxy deployment guide](docs/deployment/reverse-proxy.md) for nginx/Traefik examples and shared-network setup.
+
 Prefer to run it yourself? Clone the repo and use Docker Compose:
 
 ```sh
