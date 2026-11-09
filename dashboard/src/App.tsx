@@ -71,7 +71,7 @@ export function App() {
   let page: React.ReactNode;
   if (dayMatch) page = params.get("view") === "week"
     ? <EmployeeWeekPage key={`w-${dayMatch[1]}`} id={dayMatch[1]!} end={params.get("end")} />
-    : <EmployeeDayPage key={dayMatch[1]} id={dayMatch[1]!} date={params.get("date")} />;
+    : <EmployeeDayPage key={dayMatch[1]} id={dayMatch[1]!} date={params.get("date")} isOwner={isOwner} />;
   else if (loc.path === "/team") page = <EmployeesPage />;
   else if (loc.path === "/agents") page = <AgentsPage />;
   else if (loc.path === "/teams") page = <TeamsPage />;

@@ -19,6 +19,8 @@ pub struct Sample {
     pub idle_ms: i64,
     pub app: String,
     pub title: String,
+    /// The foreground app is a live meeting/call — treat as active even with no input.
+    pub meeting: bool,
 }
 
 #[derive(Default)]
@@ -30,7 +32,8 @@ impl SegmentBuilder {
     /// Feed one sample. Returns segments that are finished and should be stored.
     pub fn push(&mut self, s: &Sample, idle_threshold_ms: i64) -> Vec<Segment> {
         let mut done = Vec::new();
-        let is_idle = s.idle_ms >= idle_threshold_ms;
+        // A live call keeps the user "active" even past the idle threshold.
+        let is_idle = s.idle_ms >= idle_threshold_ms && !s.meeting;
         let (app, title) = if is_idle {
             (String::new(), String::new())
         } else {
@@ -114,7 +117,19 @@ mod tests {
             idle_ms,
             app: app.into(),
             title: "t".into(),
+            meeting: false,
         }
+    }
+
+    #[test]
+    fn meeting_overrides_idle() {
+        let mut b = SegmentBuilder::default();
+        let mut s = sample(0, 999_000, "zoom.us"); // idle far past threshold
+        s.meeting = true;
+        b.push(&s, T);
+        let cur = b.current().unwrap();
+        assert!(!cur.idle, "a live meeting must count as active");
+        assert_eq!(cur.app, "zoom.us");
     }
 
     #[test]
