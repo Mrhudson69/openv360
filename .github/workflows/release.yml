@@ -94,8 +94,14 @@ jobs:
           projectPath: agent
           tagName: ${{ github.ref_name }}
           releaseName: "openv360 ${{ github.ref_name }}"
-          releaseDraft: true
-          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          releaseDraft: false
+          # While the project is in the 0.x beta phase there is no stable release,
+          # so the newest release MUST be GitHub's "latest" — otherwise the
+          # `releases/latest/download` redirect that install.sh and the server use
+          # 404s. GitHub excludes pre-releases from "latest", so we publish betas
+          # as normal releases (the name/notes still say beta). Revisit once a
+          # stable v1.0.0 exists: later betas can then be prerelease again.
+          prerelease: false
           args: ${{ matrix.args }}
 
   # tauri-action names assets like `openv360_0.1.0_amd64.deb`, but the server and

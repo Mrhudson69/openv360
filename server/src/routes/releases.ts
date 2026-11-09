@@ -58,6 +58,46 @@ function keysFor(os: Os, arch: Arch): string[] {
   return [`linux-${arch}`];
 }
 
+/**
+ * Best-effort: resolve the latest published agent version from GitHub Releases,
+ * derived from GITHUB_RELEASES_URL. Cached for an hour. This lets agents
+ * auto-update after a new release with no admin action — the operator just runs
+ * `openv360 update`; they do not have to set OPENV360_LATEST_VERSION by hand.
+ * Returns null when no GitHub repo is configured or the lookup fails (the caller
+ * then falls back to the server's own version, i.e. a no-op).
+ */
+const ghCache: { version: string | null; at: number } = { version: null, at: 0 };
+const GH_TTL_MS = 60 * 60 * 1000;
+
+function githubRepoSlug(url: string | undefined): string | null {
+  if (!url) return null;
+  const m = /github\.com\/([^/]+)\/([^/]+)/i.exec(url);
+  return m ? `${m[1]}/${m[2].replace(/\.git$/, "")}` : null;
+}
+
+async function githubLatestVersion(config: Config): Promise<string | null> {
+  const slug = githubRepoSlug(config.githubReleasesUrl ?? config.releaseBase);
+  if (!slug) return null;
+  if (ghCache.version && Date.now() - ghCache.at < GH_TTL_MS) return ghCache.version;
+  try {
+    const res = await fetch(`https://api.github.com/repos/${slug}/releases/latest`, {
+      headers: { accept: "application/vnd.github+json", "user-agent": "openv360-server" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) throw new Error(`github ${res.status}`);
+    const body = (await res.json()) as { tag_name?: string };
+    const version = (body.tag_name ?? "").replace(/^v/, "").trim();
+    ghCache.version = SEMVER.test(version) ? version : null;
+    ghCache.at = Date.now();
+    return ghCache.version;
+  } catch {
+    // Network blocked / rate-limited / air-gapped: cache the miss briefly so we
+    // don't hammer the API, and fall back to OPENV360_LATEST_VERSION / no-op.
+    ghCache.at = Date.now();
+    return ghCache.version;
+  }
+}
+
 async function readManifest(dir: string): Promise<Manifest | null> {
   try {
     const raw = await fsp.readFile(path.join(dir, "releases.json"), "utf8");
@@ -96,6 +136,12 @@ export async function releasesRoutes(app: FastifyInstance, { config }: { config:
     // 2) Otherwise synthesize one from OPENV360_LATEST_VERSION, if set.
     if (!manifest && process.env.OPENV360_LATEST_VERSION && SEMVER.test(process.env.OPENV360_LATEST_VERSION)) {
       manifest = { version: process.env.OPENV360_LATEST_VERSION.trim() };
+    }
+    // 2b) Otherwise auto-detect the latest version from GitHub Releases, so a
+    //     plain `openv360 update` propagates new agent builds with no config.
+    if (!manifest) {
+      const gh = await githubLatestVersion(config);
+      if (gh) manifest = { version: gh };
     }
 
     // 3) Nothing configured: report the server's own version and no URL, so the
