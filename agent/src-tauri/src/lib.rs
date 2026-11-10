@@ -85,6 +85,10 @@ pub struct Agent {
     /// means the loop task died or wedged. It is an atomic (never a lock) so the
     /// watchdog keeps working even if a mutex elsewhere got poisoned by a panic.
     sync_beat_ms: std::sync::atomic::AtomicI64,
+    /// Most recent OS idle time (ms), written by the tracker loop. The screenshot
+    /// loop reads it so it doesn't capture (and waste the interval on) a
+    /// locked/idle screen while the user is away.
+    last_idle_ms: std::sync::atomic::AtomicI64,
 }
 
 struct TrayItems {
@@ -134,6 +138,7 @@ impl Agent {
             wake_sync: tokio::sync::Notify::new(),
             tray_items: Mutex::new(None),
             sync_beat_ms: std::sync::atomic::AtomicI64::new(now_ms()),
+            last_idle_ms: std::sync::atomic::AtomicI64::new(0),
         })
     }
 
@@ -544,6 +549,13 @@ fn spawn_loops(app: AppHandle) {
                 title: if titles { win.title } else { String::new() },
                 meeting,
             };
+            // Publish the current idle for the screenshot loop. A live meeting
+            // counts as active (idle 0) so we still capture while the user is on a
+            // call and only listening.
+            agent.last_idle_ms.store(
+                if meeting { 0 } else { idle.unwrap_or(0) },
+                std::sync::atomic::Ordering::Relaxed,
+            );
             let done = agent.builder.lock().unwrap().push(&sample, idle_threshold_ms);
             for seg in done {
                 if let Err(e) = agent.store.lock().unwrap().insert_segment(&seg) {
@@ -562,9 +574,13 @@ fn spawn_loops(app: AppHandle) {
         let agent = a.state::<Arc<Agent>>().inner().clone();
         loop {
             tokio::time::sleep(Duration::from_secs(5)).await;
-            let (enabled, interval) = {
+            let (enabled, interval, idle_threshold_ms) = {
                 let c = agent.config.lock().unwrap();
-                (c.settings.screenshots_enabled, c.settings.screenshot_interval_sec)
+                (
+                    c.settings.screenshots_enabled,
+                    c.settings.screenshot_interval_sec,
+                    c.settings.idle_threshold_sec as i64 * 1000,
+                )
             };
             if !agent.tracking_active() || !enabled {
                 agent.status.lock().unwrap().next_screenshot_at = None;
@@ -577,6 +593,15 @@ fn spawn_loops(app: AppHandle) {
                     .get_or_insert_with(|| now + next_screenshot_delay_ms(interval))
             };
             if now < next {
+                continue;
+            }
+            // Due — but only capture while the user is active. Capturing a
+            // locked/idle screen is useless, and (the real bug) rescheduling a
+            // full interval after an idle slot skips the work window that follows.
+            // So if the user is idle now, DON'T reschedule: re-check every 5 s and
+            // capture the instant they're active again, right after the due time.
+            // A live meeting counts as active (last_idle_ms is published as 0).
+            if agent.last_idle_ms.load(std::sync::atomic::Ordering::Relaxed) >= idle_threshold_ms {
                 continue;
             }
             match agent.take_screenshot().await {
