@@ -18,8 +18,68 @@ const COMBINED_SESSION_STATE: i32 = 0;
 const ANY_INPUT_EVENT: u32 = u32::MAX;
 
 fn screen_recording_granted() -> bool {
+    // CGPreflightScreenCaptureAccess is authoritative when it returns true, but
+    // it CACHES its result for the life of the process — so after the user turns
+    // Screen Recording on, the running agent keeps seeing `false` until it is
+    // relaunched. Fall back to a live, uncached probe so we detect the grant
+    // right away (no restart needed).
     // SAFETY: no preconditions.
-    unsafe { CGPreflightScreenCaptureAccess() }
+    if unsafe { CGPreflightScreenCaptureAccess() } {
+        return true;
+    }
+    can_read_foreign_window_names()
+}
+
+/// Live Screen-Recording probe: with the permission granted we can read the
+/// window *name* of a window owned by another process; without it, macOS strips
+/// those names. Unlike the preflight call this reflects the current grant state.
+fn can_read_foreign_window_names() -> bool {
+    use core_foundation::base::TCFType;
+    use core_foundation::dictionary::{CFDictionary, CFDictionaryRef};
+    use core_foundation::number::CFNumber;
+    use core_foundation::string::{CFString, CFStringRef};
+    use core_graphics::window::{
+        copy_window_info, kCGNullWindowID, kCGWindowLayer, kCGWindowListExcludeDesktopElements,
+        kCGWindowListOptionOnScreenOnly, kCGWindowName, kCGWindowOwnerPID,
+    };
+    use std::os::raw::c_void;
+
+    fn num(dict: &CFDictionary, key: CFStringRef) -> Option<i64> {
+        let v = dict.find(key as *const c_void)?;
+        // SAFETY: value is a +0 CFNumber owned by the dict.
+        unsafe { CFNumber::wrap_under_get_rule(*v as _) }.to_i64()
+    }
+    fn text(dict: &CFDictionary, key: CFStringRef) -> Option<String> {
+        let v = dict.find(key as *const c_void)?;
+        // SAFETY: value is a +0 CFString owned by the dict.
+        Some(unsafe { CFString::wrap_under_get_rule(*v as _) }.to_string())
+    }
+
+    let me = std::process::id() as i64;
+    let opts = kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements;
+    let Some(windows) = copy_window_info(opts, kCGNullWindowID) else {
+        return false;
+    };
+    for i in 0..windows.len() {
+        let Some(item) = windows.get(i) else { continue };
+        // SAFETY: each element is a +0 CFDictionary owned by the array.
+        let dict: CFDictionary =
+            unsafe { CFDictionary::wrap_under_get_rule(*item as CFDictionaryRef) };
+        // Only normal app windows (layer 0) owned by another process.
+        if num(&dict, unsafe { kCGWindowLayer }) != Some(0) {
+            continue;
+        }
+        match num(&dict, unsafe { kCGWindowOwnerPID }) {
+            Some(pid) if pid != me => {}
+            _ => continue,
+        }
+        if let Some(name) = text(&dict, unsafe { kCGWindowName }) {
+            if !name.trim().is_empty() {
+                return true; // read another app's window title ⇒ permission is on
+            }
+        }
+    }
+    false
 }
 
 fn accessibility_granted() -> bool {
