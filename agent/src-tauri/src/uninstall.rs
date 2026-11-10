@@ -13,6 +13,9 @@ use std::process::Command;
 /// deletion of the binary and exit. Never panics.
 pub fn self_uninstall(config_dir: &Path, data_dir: &Path) {
     log::warn!("administrator requested uninstall; removing openv360 from this machine");
+    // Stand the watchdog down first so it doesn't respawn us mid-removal (removing
+    // the data dir below also stops it, but the marker makes the intent explicit).
+    crate::watchdog::mark_standdown(data_dir);
     let _ = std::fs::remove_dir_all(config_dir);
     let _ = std::fs::remove_dir_all(data_dir);
 
