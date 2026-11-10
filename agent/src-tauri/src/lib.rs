@@ -85,6 +85,9 @@ pub struct Agent {
     /// means the loop task died or wedged. It is an atomic (never a lock) so the
     /// watchdog keeps working even if a mutex elsewhere got poisoned by a panic.
     sync_beat_ms: std::sync::atomic::AtomicI64,
+    /// Set when the admin sends a one-shot "update now" from the dashboard; the
+    /// sync loop runs an update check on its next tick.
+    update_requested: std::sync::atomic::AtomicBool,
 }
 
 struct TrayItems {
@@ -134,6 +137,7 @@ impl Agent {
             wake_sync: tokio::sync::Notify::new(),
             tray_items: Mutex::new(None),
             sync_beat_ms: std::sync::atomic::AtomicI64::new(now_ms()),
+            update_requested: std::sync::atomic::AtomicBool::new(false),
         })
     }
 
@@ -397,6 +401,10 @@ impl Agent {
             return Ok(());
         };
         let me = client.me().await?;
+        if me.update_requested {
+            self.update_requested
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         self.apply_command(me.command).await;
         let mut cfg = self.config.lock().unwrap();
         if cfg.settings != me.settings || cfg.employee.as_ref().map(|e| &e.name) != Some(&me.employee.name) {
@@ -427,6 +435,12 @@ impl Agent {
                     log::info!("administrator paused tracking");
                     self.flush_segment();
                 }
+                false
+            }
+            Unknown => {
+                // A command from a newer server we don't understand yet — ignore
+                // it rather than acting on a guess.
+                log::debug!("ignoring unrecognised remote command");
                 false
             }
             Uninstall => {
@@ -633,6 +647,16 @@ fn spawn_loops(app: AppHandle) {
                     }
                 }
                 notify_ui(&a);
+                // Admin pressed "Update now" in the dashboard: run the update
+                // check immediately instead of waiting for the periodic one.
+                if agent.update_requested.swap(false, std::sync::atomic::Ordering::Relaxed)
+                    && update::check_once(&agent).await
+                {
+                    log::info!("admin-requested update staged; shutting down for the new version");
+                    watchdog::mark_standdown(&agent.paths.data_dir);
+                    shutdown(&a).await;
+                    return;
+                }
             }
             let _ = tokio::time::timeout(SYNC_EVERY, agent.wake_sync.notified()).await;
         }

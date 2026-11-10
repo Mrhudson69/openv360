@@ -60,12 +60,16 @@ pub struct EnrollResponse {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct MeResponse {
     pub employee: Employee,
     pub settings: Settings,
     /// Remote command set by the administrator.
     #[serde(default)]
     pub command: DeviceCommand,
+    /// One-shot "update now" the admin sent from the dashboard.
+    #[serde(default)]
+    pub update_requested: bool,
 }
 
 /// The latest published agent release for this device's os/arch, as reported by
@@ -101,6 +105,10 @@ pub enum DeviceCommand {
     Stop,
     /// Clock out, then remove the agent and its data from this machine.
     Uninstall,
+    /// Forward-compat: an unrecognised command from a newer server is ignored
+    /// instead of failing to deserialize (which would freeze the command channel).
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Deserialize)]
