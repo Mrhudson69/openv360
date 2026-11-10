@@ -177,7 +177,12 @@ export async function agentRoutes(app: FastifyInstance, { db, config }: { db: Db
                     start: { type: "integer", minimum: 0 },
                     end: { type: "integer", minimum: 0 },
                     idle: { type: "boolean" },
-                    app: { type: "string", minLength: 1, maxLength: 256 },
+                    // Idle segments legitimately carry an empty app, so allow "".
+                    // (Active segments always arrive non-empty from the agent.)
+                    // minLength:1 here rejected the whole batch on the first idle
+                    // segment, jamming the queue forever and taking the device
+                    // permanently offline.
+                    app: { type: "string", minLength: 0, maxLength: 256 },
                     title: { type: "string", maxLength: 1024 },
                   },
                 },
