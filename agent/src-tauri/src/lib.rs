@@ -306,6 +306,7 @@ impl Agent {
             client.post_sessions(&sessions).await?;
             let ids: Vec<String> = sessions.into_iter().map(|s| s.id).collect();
             self.store.lock().unwrap().mark_uploaded(Table::Sessions, &ids)?;
+            self.beat(); // flushing a large backlog is progress, not a stall
         }
 
         loop {
@@ -316,6 +317,7 @@ impl Agent {
             client.post_activity(&segs).await?;
             let ids: Vec<String> = segs.into_iter().map(|s| s.id).collect();
             self.store.lock().unwrap().mark_uploaded(Table::Segments, &ids)?;
+            self.beat();
         }
 
         loop {
@@ -333,6 +335,7 @@ impl Agent {
                     .lock()
                     .unwrap()
                     .mark_uploaded(Table::Screenshots, &[shot.id])?;
+                self.beat(); // each uploaded screenshot is progress
             }
         }
 
