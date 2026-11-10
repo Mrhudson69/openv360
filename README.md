@@ -49,20 +49,23 @@ Everything you need to run **workforce analytics and employee time tracking** on
 
 - **Automatic time & activity tracking** — Captures worked time, active application, and window title, and distinguishes active from idle time. No manual timers required; employees just clock in.
 - **Screenshot monitoring (configurable)** — Periodic screenshots at an interval you choose, with optional **blur** for privacy and automatic **retention**/cleanup. Turn it off entirely per deployment.
-- **Idle detection** — Separates focused work from away/idle periods so timesheets reflect real activity.
-- **Per-team productivity rules** — Classify applications and sites as productive, neutral, or unproductive, with **different rules per team**, and roll it up into productivity scores.
+- **Multi-monitor capture** — Dual/triple-screen setups are captured in full and **stitched into one screenshot**, automatically, on every OS.
+- **Idle detection (no keylogging)** — Uses the OS idle timer only (no keystroke or mouse-content logging) to separate focused work from away/idle periods, so timesheets reflect real activity.
+- **Meetings count as work** — Time spent in a live call (Zoom, Google Meet, Microsoft Teams, Slack huddle, Webex…) counts as active even when you're only listening — not logged as idle.
+- **Per-team productivity rules** — Classify applications and sites as productive, neutral, or unproductive, with **different rules per team**, and roll it up into productivity scores. Mark an app productive **org-wide in one click** from the Top-apps view.
 - **Teams & roles** — Organize people into teams with role-based access: **owner** and **team-manager**, so managers see only their own team.
 - **Attendance & timesheets** — Clock-in/out, worked hours, and attendance views across the day, week, and custom ranges.
 - **Reports & CSV export** — Worked-hours, activity, and productivity reports you can filter and export to **CSV** for payroll or analysis.
 - **Alerts** — Get notified via **Slack, webhook, or email** on the conditions you care about.
-- **Scheduled email reports** — Automated recurring report emails via your own SMTP server.
-- **Dashboards** — Overview, team, and per-employee **Day/Week** views with a **zoomable timeline**, a **filterable activity log**, and a **screenshot gallery**.
+- **Scheduled email reports** — Automated recurring report emails via your own SMTP server (SSL/TLS, cert verification, test send).
+- **Dashboards** — Overview, team, and per-employee **Day/Week** views with a **zoomable timeline** (drag to filter a range), a **filterable activity log**, a **screenshot gallery**, and tabbed Screenshots / Top-apps / Activity / Clock-in-out.
 - **Full rebranding (white-label)** — Change the product name, colors, and logo to match your organization.
 - **Cross-platform desktop agents** — One agent for **Windows, macOS, and Linux** (Ubuntu 24.04 & 26.04 first-class), built in Rust + Tauri 2 as a small native binary.
-- **Auto-update** — Agents update themselves; no manual rollout across machines.
-- **Offline-resilient** — The agent queues activity and screenshots locally and retries, so nothing is lost when the network drops.
-- **Transparent & privacy-respecting** — Always-visible tray icon, records only while clocked in, and no covert/hidden-process behavior.
-- **Self-hosted with automatic HTTPS** — One-command server setup with Docker Compose + Caddy and automatic Let's Encrypt certificates. Your data never leaves your server.
+- **One-command, self-healing auto-update** — Agents update themselves within ~1 hour of a release (no manual rollout); the server auto-detects the latest version. Update the server in place with `openv360 update`.
+- **Never loses data, never silently offline** — The agent queues activity and screenshots locally and retries forever through any outage; it **never auto-disconnects** on a transient server error, a self-healing watchdog recovers from a hang/crash, and a bad record can't jam the queue. When the server returns, the backlog flushes.
+- **Runs on always-on & headless machines** — Designed for 24/7 cloud/remote hosts: it stays quiet when a session is locked, RDP is disconnected, or there's no desktop.
+- **Transparent anti-tamper** — Always-visible tray icon; records only while clocked in; **no covert/hidden-process behavior**. On managed devices an optional watchdog **respawns the agent if it's force-quit**, while the admin can always remove it cleanly from the dashboard.
+- **Self-hosted, with your choice of TLS** — One-command setup with Docker Compose + **automatic HTTPS (Caddy + Let's Encrypt)**, or run **behind your existing nginx/Traefik** reverse proxy. Your data never leaves your server.
 
 ## Why openv360?
 
@@ -116,10 +119,25 @@ curl -fsSL https://YOUR-SERVER/install.sh | sh -s -- --code XXXX-XXXX
 **Windows (PowerShell):**
 
 ```powershell
-irm https://YOUR-SERVER/install.ps1 | iex; openv360-install -Code XXXX-XXXX
+& ([scriptblock]::Create((irm https://YOUR-SERVER/install.ps1))) -Code XXXX-XXXX
 ```
 
-The agent downloads, installs, connects to your server, and starts tracking — always visible in the tray.
+The agent downloads, installs (per-user — no admin needed), connects to your server, and starts tracking — always visible in the tray. On macOS it asks for Screen Recording permission on first launch and detects the grant live (no restart needed).
+
+### 3. Keeping it updated
+
+**Server** — update in place; data and secrets are preserved:
+
+```sh
+sudo openv360 update      # git pull + rebuild + restart
+openv360 status           # health, version, and management commands
+```
+
+(`openv360` also supports `logs`, `restart`, `stop`, `start`, and `backup`.)
+
+**Agents** update themselves — within about an hour of a new release, with no action per machine (the server auto-detects the latest version from GitHub Releases). To push an update to a device immediately, restart its agent; it checks ~60 s after launch. Air-gapped servers can pin the version with `OPENV360_LATEST_VERSION` in `.env`.
+
+**Uninstall an agent** — remotely from the dashboard (**Uninstall agent**), or locally with the uninstaller (`uninstall.sh` / `uninstall.ps1`).
 
 ## How it works
 
@@ -173,9 +191,11 @@ openv360/
 
 openv360 is **employee-monitoring software**, and it is built to be used transparently and lawfully.
 
-- **Hashing & encryption** — Admin passwords use **scrypt** (random salt + constant-time compare); device and session tokens are **SHA-256-hashed**; the SMTP password is **AES-256-GCM encrypted at rest**.
-- **Transport** — The deployment path provisions **automatic HTTPS** (Caddy + Let's Encrypt), so agent-to-server traffic is encrypted.
-- **Transparency** — The agent is **always visible** in the system tray, records **only while clocked in**, and does **not** hide its process or capture covertly.
+- **Hashing & encryption** — Admin passwords use **scrypt** (random salt + constant-time compare); device and session tokens are **SHA-256-hashed**; the SMTP password is **AES-256-GCM encrypted at rest**. Owners can reset other admins' passwords; managers can change their own.
+- **Transport** — The deployment path provisions **automatic HTTPS** (Caddy + Let's Encrypt), so agent-to-server traffic is encrypted. Agent self-update refuses to run over plain HTTP.
+- **No keylogging** — Idle is derived from the **OS idle timer only**. openv360 never records keystrokes or mouse content.
+- **Transparency** — The agent is **always visible** in the system tray, records **only while clocked in**, and does **not** hide its process or capture covertly. The anti-tamper respawn keeps a visible agent running on managed devices; it is **not** stealth, and the admin can remove it at any time.
+- **Least privilege** — Team managers are scoped to their own team only; owner-only actions are enforced server-side.
 - **Data ownership** — Everything is stored on **your** server: activity in PostgreSQL, screenshots on disk, with configurable **retention**.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
@@ -199,12 +219,15 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for local setu
 ## Roadmap
 
 - [x] Cross-platform agent (Windows, macOS, Linux)
-- [x] Time, app, idle, and screenshot tracking
+- [x] Time, app, idle, and multi-monitor screenshot tracking
+- [x] Meetings (Zoom / Meet / Teams / …) counted as active work
 - [x] Teams, roles, and per-team productivity rules
 - [x] Attendance, reports, and CSV export
 - [x] Alerts (Slack / webhook / email) and scheduled reports
 - [x] Full rebranding / white-label
-- [x] One-command self-hosted deploy with automatic HTTPS
+- [x] One-command self-hosted deploy — automatic HTTPS **or** behind your own nginx/Traefik
+- [x] Self-healing agents (never lose data, never silently offline) + one-command auto-update
+- [x] Transparent anti-tamper respawn on managed devices
 - [ ] 1.0 stabilization and migration guarantees
 - [ ] Mobile companion / activity on mobile
 - [ ] More integrations (payroll, project tools)
