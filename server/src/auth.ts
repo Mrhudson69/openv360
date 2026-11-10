@@ -126,12 +126,19 @@ export function requireDevice(db: Db) {
   return async (req: FastifyRequest, reply: FastifyReply) => {
     const token = bearer(req);
     if (!token) return reply.code(401).send({ error: "device token required" });
+    // The agent reports its current version in the User-Agent ("openv360-agent/X")
+    // on every request. Refresh agent_version from it so the dashboard reflects an
+    // in-place update, not just the version recorded at enrollment. COALESCE keeps
+    // the existing value when the header is missing/unparseable.
+    const ua = Array.isArray(req.headers["user-agent"]) ? req.headers["user-agent"][0] : req.headers["user-agent"];
+    const version = /openv360-agent\/(\S{1,32})/.exec(ua ?? "")?.[1] ?? null;
     const { rows } = await db.query<{ device_id: string; employee_id: string; employee_name: string; command: DeviceAuth["command"]; update_requested: boolean }>(
-      `UPDATE devices d SET last_seen_at = $2
+      `UPDATE devices d SET last_seen_at = $2,
+             agent_version = COALESCE($3, d.agent_version)
        FROM employees e
        WHERE d.token_hash = $1 AND d.revoked_at IS NULL AND e.id = d.employee_id
        RETURNING d.id AS device_id, d.employee_id, e.name AS employee_name, d.command, d.update_requested`,
-      [hashToken(token), Date.now()],
+      [hashToken(token), Date.now(), version],
     );
     if (!rows[0]) return reply.code(401).send({ error: "device not enrolled or revoked" });
     req.device = {
