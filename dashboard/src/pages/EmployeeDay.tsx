@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { confirmDialog } from "../components/confirm";
 import { api, screenshotUrl, type Category, type DayData, type Segment, type Shot } from "../api";
 import { ActivityLog } from "../components/ActivityLog";
@@ -42,12 +42,20 @@ export function EmployeeDayPage(props: { id: string; date: string | null; isOwne
   const [tab, setTab] = useState<DetailTab>("screenshots");
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
 
+  // Guard against out-of-order responses: this component instance is reused when
+  // only `date` changes, so a slow fetch for one date could otherwise overwrite
+  // a newer one. Only the latest request is allowed to set state.
+  const reqSeq = useRef(0);
   const load = useCallback(async () => {
+    const seq = ++reqSeq.current;
     try {
       const tz = new Date(localMidnight(date)).getTimezoneOffset();
-      setData(await api<DayData>(`/api/employees/${props.id}/day?date=${date}&tzOffsetMin=${tz}`));
+      const d = await api<DayData>(`/api/employees/${props.id}/day?date=${date}&tzOffsetMin=${tz}`);
+      if (seq !== reqSeq.current) return; // a newer load superseded this one
+      setData(d);
       setError(null);
     } catch (e) {
+      if (seq !== reqSeq.current) return;
       setError((e as Error).message);
     }
   }, [props.id, date]);

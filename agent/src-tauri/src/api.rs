@@ -9,6 +9,10 @@ use std::time::Duration;
 pub enum ApiError {
     /// Device token rejected — the device was revoked or the employee removed.
     Unauthorized,
+    /// A 4xx (other than 401): the server will never accept this payload, so
+    /// retrying it unchanged is pointless. Lets the caller quarantine a bad row
+    /// instead of letting it block the whole upload queue forever.
+    Rejected(String),
     Other(anyhow::Error),
 }
 
@@ -16,6 +20,7 @@ impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ApiError::Unauthorized => write!(f, "this device is no longer authorised"),
+            ApiError::Rejected(e) => write!(f, "{e}"),
             ApiError::Other(e) => write!(f, "{e}"),
         }
     }
@@ -153,6 +158,12 @@ impl Client {
             .await
             .map(|b| b.error)
             .unwrap_or_else(|_| status.to_string());
+        // 4xx (except 401) = the server rejects this payload and always will;
+        // surface it as Rejected so a bad row can be quarantined, not retried
+        // forever. 5xx / anything else is treated as transient and retried.
+        if status.is_client_error() {
+            return Err(ApiError::Rejected(msg));
+        }
         Err(ApiError::Other(anyhow::anyhow!(msg)))
     }
 
@@ -168,6 +179,7 @@ impl Client {
         match Self::check(resp).await {
             Ok(r) => Ok(r.json().await?),
             Err(ApiError::Unauthorized) => anyhow::bail!("invalid or expired enrollment code"),
+            Err(ApiError::Rejected(m)) => anyhow::bail!("{m}"),
             Err(ApiError::Other(e)) => Err(e),
         }
     }
@@ -187,7 +199,16 @@ impl Client {
     /// Download an arbitrary absolute URL (a release artifact or the installer
     /// script). Returns the raw bytes.
     pub async fn download(&self, url: &str) -> anyhow::Result<Vec<u8>> {
-        let resp = self.http.get(url).send().await?.error_for_status()?;
+        // Update artifacts can be tens of MB on a slow corporate link; override
+        // the short default request timeout so a large download isn't aborted
+        // mid-transfer (which would leave the agent stuck on an old version).
+        let resp = self
+            .http
+            .get(url)
+            .timeout(Duration::from_secs(600))
+            .send()
+            .await?
+            .error_for_status()?;
         Ok(resp.bytes().await?.to_vec())
     }
 

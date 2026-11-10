@@ -303,9 +303,26 @@ impl Agent {
 
         let sessions = self.store.lock().unwrap().pending_sessions()?;
         if !sessions.is_empty() {
-            client.post_sessions(&sessions).await?;
-            let ids: Vec<String> = sessions.into_iter().map(|s| s.id).collect();
-            self.store.lock().unwrap().mark_uploaded(Table::Sessions, &ids)?;
+            match client.post_sessions(&sessions).await {
+                Ok(()) => {
+                    let ids: Vec<String> = sessions.into_iter().map(|s| s.id).collect();
+                    self.store.lock().unwrap().mark_uploaded(Table::Sessions, &ids)?;
+                }
+                Err(api::ApiError::Rejected(msg)) => {
+                    // A malformed row is poisoning the batch; isolate it so the
+                    // rest drains instead of jamming the queue forever.
+                    log::warn!("sessions batch rejected ({msg}); isolating bad rows");
+                    for s in sessions {
+                        match client.post_sessions(std::slice::from_ref(&s)).await {
+                            Ok(()) => {}
+                            Err(api::ApiError::Rejected(m)) => log::warn!("dropping unacceptable session {}: {m}", s.id),
+                            Err(e) => return Err(e), // transient / unauthorized — retry later
+                        }
+                        self.store.lock().unwrap().mark_uploaded(Table::Sessions, std::slice::from_ref(&s.id))?;
+                    }
+                }
+                Err(e) => return Err(e),
+            }
             self.beat(); // flushing a large backlog is progress, not a stall
         }
 
@@ -314,29 +331,58 @@ impl Agent {
             if segs.is_empty() {
                 break;
             }
-            client.post_activity(&segs).await?;
-            let ids: Vec<String> = segs.into_iter().map(|s| s.id).collect();
-            self.store.lock().unwrap().mark_uploaded(Table::Segments, &ids)?;
+            match client.post_activity(&segs).await {
+                Ok(()) => {
+                    let ids: Vec<String> = segs.into_iter().map(|s| s.id).collect();
+                    self.store.lock().unwrap().mark_uploaded(Table::Segments, &ids)?;
+                }
+                Err(api::ApiError::Rejected(msg)) => {
+                    // One (or more) malformed segment (bad timestamp, over-long
+                    // title, …) is rejecting the whole batch. Re-send row-by-row:
+                    // good rows go through, and each rejected row is quarantined
+                    // (marked uploaded so it stops blocking the queue) with a log.
+                    log::warn!("activity batch rejected ({msg}); isolating bad rows");
+                    for seg in segs {
+                        match client.post_activity(std::slice::from_ref(&seg)).await {
+                            Ok(()) => {}
+                            Err(api::ApiError::Rejected(m)) => log::warn!("dropping unacceptable segment {}: {m}", seg.id),
+                            Err(e) => return Err(e), // transient / unauthorized — stop, retry later
+                        }
+                        self.store.lock().unwrap().mark_uploaded(Table::Segments, std::slice::from_ref(&seg.id))?;
+                        self.beat();
+                    }
+                }
+                Err(e) => return Err(e),
+            }
             self.beat();
         }
 
-        loop {
-            let shots = self.store.lock().unwrap().pending_screenshots(10)?;
-            if shots.is_empty() {
-                break;
-            }
-            for shot in shots {
-                match std::fs::read(&shot.path) {
-                    Ok(bytes) => client.post_screenshot(&shot.id, shot.taken_at, bytes).await?,
-                    Err(e) => log::warn!("screenshot file missing, dropping: {e}"),
+        // One bounded pass per sync. A screenshot whose file is temporarily
+        // unreadable (common on Windows: AV / Search indexer briefly locks the
+        // fresh .jpg) is left queued for the next sync instead of being dropped —
+        // only a genuinely-missing file is discarded.
+        let shots = self.store.lock().unwrap().pending_screenshots(50)?;
+        for shot in shots {
+            match std::fs::read(&shot.path) {
+                Ok(bytes) => match client.post_screenshot(&shot.id, shot.taken_at, bytes).await {
+                    Ok(()) => {}
+                    Err(api::ApiError::Rejected(m)) => log::warn!("server rejected screenshot {} (dropping): {m}", shot.id),
+                    Err(e) => return Err(e), // transient / unauthorized — retry later
+                },
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    log::warn!("screenshot file gone, dropping: {e}");
                 }
-                let _ = std::fs::remove_file(&shot.path);
-                self.store
-                    .lock()
-                    .unwrap()
-                    .mark_uploaded(Table::Screenshots, &[shot.id])?;
-                self.beat(); // each uploaded screenshot is progress
+                Err(e) => {
+                    log::warn!("screenshot read failed (will retry): {e}");
+                    continue; // keep uploaded=0, don't delete — retry next sync
+                }
             }
+            let _ = std::fs::remove_file(&shot.path);
+            self.store
+                .lock()
+                .unwrap()
+                .mark_uploaded(Table::Screenshots, &[shot.id])?;
+            self.beat(); // each uploaded screenshot is progress
         }
 
         let week_ago = now_ms() - 7 * 24 * 3600 * 1000;
@@ -350,7 +396,7 @@ impl Agent {
             return Ok(());
         };
         let me = client.me().await?;
-        self.apply_command(me.command);
+        self.apply_command(me.command).await;
         let mut cfg = self.config.lock().unwrap();
         if cfg.settings != me.settings || cfg.employee.as_ref().map(|e| &e.name) != Some(&me.employee.name) {
             cfg.settings = me.settings;
@@ -362,7 +408,7 @@ impl Agent {
 
     /// Act on the administrator's remote command. Returns true if the agent is
     /// shutting down (uninstall), so callers can stop their loops.
-    fn apply_command(&self, cmd: api::DeviceCommand) -> bool {
+    async fn apply_command(&self, cmd: api::DeviceCommand) -> bool {
         use api::DeviceCommand::*;
         match cmd {
             None => {
@@ -383,8 +429,11 @@ impl Agent {
                 false
             }
             Uninstall => {
-                // Clock out cleanly and push a final sync best-effort before removing ourselves.
+                // Clock out cleanly, then push a final sync (best-effort, bounded)
+                // so the clock-out and any queued backlog reach the server before
+                // self_uninstall() deletes the local data dir.
                 self.set_clocked_in(false);
+                let _ = tokio::time::timeout(Duration::from_secs(5), self.sync()).await;
                 uninstall::self_uninstall(
                     self.paths.config_file.parent().unwrap_or(&self.paths.config_file),
                     self.paths.screens_dir.parent().unwrap_or(&self.paths.screens_dir),
@@ -531,10 +580,14 @@ fn spawn_loops(app: AppHandle) {
             }
             match agent.take_screenshot().await {
                 Ok(()) => log::info!("screenshot captured"),
-                Err(e) => {
-                    log::warn!("screenshot failed: {e:#}");
-                    agent.set_error(Some(format!("Screenshot failed: {e}")));
-                }
+                // A capture failure is almost always benign on an always-on
+                // machine: the session is locked, the RDP console is disconnected,
+                // or it's a headless server with no desktop. Screenshots are
+                // best-effort, so log quietly (debug) and do NOT raise a
+                // dashboard-facing error — that was just recurring noise. A
+                // missing Screen Recording permission is surfaced separately via
+                // diagnostics(), so real misconfig is still visible.
+                Err(e) => log::debug!("screenshot skipped: {e:#}"),
             }
             agent.status.lock().unwrap().next_screenshot_at =
                 Some(now_ms() + next_screenshot_delay_ms(interval));

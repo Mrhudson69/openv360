@@ -9,13 +9,17 @@ export function OverviewPage() {
 
   useEffect(() => {
     const load = () =>
-      api<Overview>(`/api/overview?tzOffsetMin=${tzOffset()}`).then(setData).catch((e) => setError((e as Error).message));
+      api<Overview>(`/api/overview?tzOffsetMin=${tzOffset()}`)
+        .then((d) => { setData(d); setError(null); }) // clear a prior transient error on success
+        .catch((e) => setError((e as Error).message));
     void load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, []);
 
-  if (error) return <div className="page"><h1>Overview</h1><div className="error">{error}</div></div>;
+  // Only block the whole page on an error during the very first load; once we
+  // have data, a later failed poll shows inline, not a dead-end error screen.
+  if (error && !data) return <div className="page"><h1>Overview</h1><div className="error">{error}</div></div>;
   if (!data) return <div className="page"><h1>Overview</h1><p className="muted pad">Loading…</p></div>;
 
   const t = data.today;

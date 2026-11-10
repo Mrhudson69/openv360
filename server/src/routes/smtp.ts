@@ -174,9 +174,9 @@ export async function smtpRoutes(app: FastifyInstance, { db }: { db: Db; config:
     r.post<{ Body: { to?: unknown } }>("/api/smtp/test", async (req, reply) => {
       const to = typeof req.body?.to === "string" ? req.body.to.trim() : "";
       if (!to) return reply.code(400).send({ error: "to is required" });
-      const mt = await buildMailTransport(db);
-      if (!mt) return { ok: false, error: "email not configured" };
       try {
+        const mt = await buildMailTransport(db);
+        if (!mt) return { ok: false, error: "email not configured" };
         await mt.transport.sendMail({
           from: mt.from,
           to,

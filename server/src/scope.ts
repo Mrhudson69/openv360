@@ -1,9 +1,10 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { Db } from "./db.js";
 
-/** Owners see everything; managers are scoped to their one team. */
+/** Owners see everything; managers are scoped to their one team. Fail closed:
+ *  only an explicit "owner" role is privileged (a missing/unknown role is not). */
 export function isOwner(req: FastifyRequest): boolean {
-  return req.admin?.role !== "manager";
+  return req.admin?.role === "owner";
 }
 
 /** Reject non-owners with 403. Returns false when it has already replied. */
