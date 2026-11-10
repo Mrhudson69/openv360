@@ -34,7 +34,7 @@ export function EmployeeWeekPage(props: { id: string; end: string | null }) {
     <div className="page">
       <header className="page-head">
         <div>
-          <Link to="/team" className="back">← Team</Link>
+          <Link to="/team" className="back">← Members</Link>
           <h1>{data?.employee.name ?? "…"}</h1>
           {data?.employee.team && <p className="muted">{data.employee.team}</p>}
         </div>
