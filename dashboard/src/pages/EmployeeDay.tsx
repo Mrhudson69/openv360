@@ -170,7 +170,7 @@ export function EmployeeDayPage(props: { id: string; date: string | null; isOwne
     <div className="page emp-page">
       <header className="page-head sticky-head">
         <div>
-          <Link to="/team" className="back"><Icon.ArrowLeft size={15} /> Team</Link>
+          <Link to="/team" className="back"><Icon.ArrowLeft size={15} /> Members</Link>
           <h1>{data?.employee.name ?? <span className="sk sk-title" />}</h1>
           {data?.employee.team && <p className="muted">{data.employee.team}</p>}
         </div>

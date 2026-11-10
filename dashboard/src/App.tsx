@@ -102,7 +102,7 @@ export function App() {
         </div>
         <div className="nav-links">
           {isOwner && link("/", "overview", "Overview")}
-          {link(isOwner ? "/team" : "/", "team", "Team")}
+          {link(isOwner ? "/team" : "/", "team", "Members")}
           {isOwner && link("/agents", "agents", "Agents")}
           {isOwner && link("/teams", "teams", "Teams")}
           {isOwner && link("/attendance", "attendance", "Attendance")}

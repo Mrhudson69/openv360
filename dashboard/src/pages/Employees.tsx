@@ -56,7 +56,7 @@ export function EmployeesPage() {
     <div className="page">
       <header className="page-head">
         <div>
-          <h1>Team</h1>
+          <h1>Members</h1>
           <p className="muted">{list ? `${list.length} people · ${online} online now · ${duration(teamTotal)} active today` : "Loading…"}</p>
         </div>
         <div className="row">
