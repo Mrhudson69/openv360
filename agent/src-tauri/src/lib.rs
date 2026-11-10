@@ -13,6 +13,7 @@ mod capture;
 mod config;
 mod meeting;
 mod platform;
+mod watchdog;
 mod store;
 mod tracker;
 mod update;
@@ -648,6 +649,10 @@ fn spawn_loops(app: AppHandle) {
         loop {
             if agent.config.lock().unwrap().is_enrolled() && update::check_once(&agent).await {
                 log::info!("update staged; shutting down for the new version to take over");
+                // Tell the watchdog to stand aside: the installer will relaunch the
+                // new build (which re-arms a fresh watchdog), so it must not respawn
+                // the old one mid-install.
+                watchdog::mark_standdown(&agent.paths.data_dir);
                 shutdown(&a).await;
                 return;
             }
@@ -848,7 +853,20 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let launched_by_autostart = std::env::args().any(|a| a == "--autostart");
+    // Anti-tamper watchdog mode: `--watchdog <data_dir>` runs a tiny sibling loop
+    // (no UI/Tauri) that respawns the agent if it is killed. Handled before any
+    // Tauri init so it stays lightweight and doesn't open a window/tray.
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(i) = args.iter().position(|a| a == "--watchdog") {
+        if let Some(dir) = args.get(i + 1) {
+            // No logger backend here (Tauri's log plugin isn't initialised in
+            // this mode); the log macros are harmless no-ops.
+            watchdog::run_watchdog(std::path::PathBuf::from(dir));
+        }
+        return;
+    }
+
+    let launched_by_autostart = args.iter().any(|a| a == "--autostart");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
@@ -877,11 +895,21 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             let paths = Paths::new(app.path().app_config_dir()?, app.path().app_data_dir()?);
+            let data_dir = paths.data_dir.clone();
             let pending = PendingEnrollment::from_args(std::env::args())
                 .or_else(|| PendingEnrollment::take_from_file(&paths.enroll_file));
             let agent = Arc::new(Agent::new(paths)?);
             app.manage(agent.clone());
             build_tray(app.handle())?;
+
+            // Anti-tamper respawn: only for real service installs (launched with
+            // --autostart), never a dev/manual run. A sibling watchdog brings the
+            // agent back if it is killed; this supervisor keeps that watchdog
+            // alive and heartbeats so the watchdog can tell if we are killed/hung.
+            if launched_by_autostart {
+                let _ = std::fs::create_dir_all(&data_dir);
+                std::thread::spawn(move || watchdog::supervise(data_dir));
+            }
 
             let handle = app.handle().clone();
             tauri::async_runtime::spawn_blocking(platform::prepare);

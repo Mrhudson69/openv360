@@ -140,6 +140,9 @@ pub struct Paths {
     pub enroll_file: PathBuf,
     pub db_file: PathBuf,
     pub screens_dir: PathBuf,
+    /// The agent's data directory (holds the queue, screenshots and the
+    /// watchdog heartbeat/stand-down markers).
+    pub data_dir: PathBuf,
 }
 
 impl Paths {
@@ -149,6 +152,7 @@ impl Paths {
             enroll_file: config_dir.join("enroll.json"),
             db_file: data_dir.join("queue.sqlite3"),
             screens_dir: data_dir.join("screens"),
+            data_dir,
         }
     }
 }

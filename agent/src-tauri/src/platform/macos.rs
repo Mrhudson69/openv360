@@ -73,10 +73,8 @@ fn can_read_foreign_window_names() -> bool {
             Some(pid) if pid != me => {}
             _ => continue,
         }
-        if let Some(name) = text(&dict, unsafe { kCGWindowName }) {
-            if !name.trim().is_empty() {
-                return true; // read another app's window title ⇒ permission is on
-            }
+        if text(&dict, unsafe { kCGWindowName }).is_some_and(|n| !n.trim().is_empty()) {
+            return true; // read another app's window title ⇒ permission is on
         }
     }
     false
