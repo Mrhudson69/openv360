@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, tzOffset, type WeekData } from "../api";
 import { duration, localISODate, shiftDate } from "../format";
 import { Link, navigate } from "../router";
@@ -12,11 +12,15 @@ export function EmployeeWeekPage(props: { id: string; end: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const today = localISODate();
 
+  const reqSeq = useRef(0); // ignore out-of-order responses (instance reused when `end` changes)
   const load = useCallback(async () => {
+    const seq = ++reqSeq.current;
     try {
-      setData(await api<WeekData>(`/api/employees/${props.id}/week?end=${end}&tzOffsetMin=${tzOffset()}`));
+      const d = await api<WeekData>(`/api/employees/${props.id}/week?end=${end}&tzOffsetMin=${tzOffset()}`);
+      if (seq !== reqSeq.current) return;
+      setData(d);
       setError(null);
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { if (seq === reqSeq.current) setError((e as Error).message); }
   }, [props.id, end]);
   useEffect(() => { setData(null); void load(); }, [load]);
 

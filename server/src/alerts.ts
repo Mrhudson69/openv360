@@ -192,9 +192,9 @@ export async function buildMailTransport(db: Db): Promise<MailTransport | null> 
 }
 
 async function deliverEmail(to: string, payload: DeliveryPayload, db?: Db): Promise<DeliveryResult> {
-  const mt = db ? await buildMailTransport(db) : buildEnvMailTransport();
-  if (!mt) return { delivered: false, error: "email not configured" };
   try {
+    const mt = db ? await buildMailTransport(db) : buildEnvMailTransport();
+    if (!mt) return { delivered: false, error: "email not configured" };
     await mt.transport.sendMail({
       from: mt.from,
       to,

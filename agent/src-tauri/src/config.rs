@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
+// `default` so a settings payload that is missing a field (e.g. the server added
+// or renamed one) still deserializes — otherwise enroll() and every me() would
+// hard-fail, which would also freeze the remote pause/uninstall command channel.
+#[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub screenshots_enabled: bool,
     pub screenshot_interval_sec: u64,

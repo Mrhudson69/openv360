@@ -67,7 +67,9 @@ export function App() {
 
   const dayMatch = /^\/employees\/([0-9a-f-]{36})$/i.exec(loc.path);
   const params = new URLSearchParams(loc.search);
-  const isOwner = state.user.role !== "manager";
+  // Fail closed: only an explicit "owner" role gets owner UI/actions. A missing
+  // or unknown role is treated as the least-privileged (manager) view.
+  const isOwner = state.user.role === "owner";
   let page: React.ReactNode;
   if (dayMatch) page = params.get("view") === "week"
     ? <EmployeeWeekPage key={`w-${dayMatch[1]}`} id={dayMatch[1]!} end={params.get("end")} />

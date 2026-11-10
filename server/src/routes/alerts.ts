@@ -8,6 +8,7 @@ import {
   type AlertRule,
 } from "../alerts.js";
 import { requireAdmin } from "../auth.js";
+import { isOwner } from "../scope.js";
 import type { Config } from "../config.js";
 import type { Db } from "../db.js";
 
@@ -39,6 +40,12 @@ async function getRule(db: Db, id: string): Promise<AlertRule | null> {
 export async function alertsRoutes(app: FastifyInstance, { db }: { db: Db; config: Config }) {
   await app.register(async (r) => {
     r.addHook("preHandler", requireAdmin(db));
+    // Alerts are an org-wide owner feature (webhooks can reach arbitrary URLs and
+    // events span every team), so the whole plugin is owner-only — a team manager
+    // must not create/test rules or read cross-team alert events.
+    r.addHook("preHandler", async (req, reply) => {
+      if (!isOwner(req)) return reply.code(403).send({ error: "owners only" });
+    });
 
     r.get("/api/alerts/rules", async () => {
       const { rows } = await db.query<RuleRow>(`SELECT ${RULE_COLUMNS} FROM alert_rules ORDER BY created_at`);

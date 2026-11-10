@@ -151,6 +151,17 @@ async fn apply(
     _rel: &crate::api::ReleaseInfo,
     _url: &str,
 ) -> anyhow::Result<()> {
+    // We fetch install.sh and run it as root-ish via the service; over plaintext
+    // http an on-path attacker could swap in a malicious script (RCE). macOS and
+    // Windows verify a sha256 of their artifact; the Linux script path has no such
+    // check, so require https here. http deployments simply skip auto-update (the
+    // admin can update manually) rather than accept a code-injection vector.
+    if !server_url.starts_with("https://") {
+        anyhow::bail!(
+            "auto-update over an unencrypted (http) server is disabled for safety — \
+             a man-in-the-middle could inject a malicious installer. Use https, or update manually."
+        );
+    }
     let dir = temp_dir()?;
     let script = dir.join("install.sh");
     let bytes = client.download(&format!("{server_url}/install.sh")).await?;

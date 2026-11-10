@@ -327,8 +327,10 @@ export async function adminRoutes(app: FastifyInstance, { db, config }: { db: Db
     r.addHook("preHandler", async (req, reply) => {
       if (req.admin!.role === "owner") return;
       const url = req.url.split("?")[0]!;
-      const readOnlyPost = url === "/api/auth/logout";
-      if (req.method !== "GET" && !readOnlyPost) return reply.code(403).send({ error: "owners only" });
+      // Writes are owner-only, except a manager's own session actions: signing
+      // out and changing their own password.
+      const selfAllowed = url === "/api/auth/logout" || url === "/api/auth/password";
+      if (req.method !== "GET" && !selfAllowed) return reply.code(403).send({ error: "owners only" });
     });
 
     r.post("/api/auth/logout", async (req) => {
@@ -749,13 +751,15 @@ export async function adminRoutes(app: FastifyInstance, { db, config }: { db: Db
     );
 
     // ---- Teams ----
-    r.get("/api/teams", async () => {
-      const { rows } = await db.query<{ id: string; name: string; created_at: number; member_count: number; rule_count: number }>(
+    r.get("/api/teams", async (req) => {
+      const { rows: all } = await db.query<{ id: string; name: string; created_at: number; member_count: number; rule_count: number }>(
         `SELECT t.id, t.name, t.created_at,
            (SELECT count(*)::int FROM employees e WHERE e.team_id = t.id) AS member_count,
            (SELECT count(*)::int FROM app_rules ar WHERE ar.team_id = t.id) AS rule_count
          FROM teams t ORDER BY lower(t.name), t.name`,
       );
+      // Managers only ever see their own team.
+      const rows = isOwner(req) ? all : all.filter((t) => t.id === req.admin!.teamId);
       return {
         teams: rows.map((t) => ({
           id: t.id,
@@ -817,6 +821,7 @@ export async function adminRoutes(app: FastifyInstance, { db, config }: { db: Db
 
     r.get<{ Params: { id: string } }>("/api/teams/:id/members", async (req, reply) => {
       if (!UUID_RE.test(req.params.id)) return badId(reply);
+      if (!isOwner(req) && req.params.id !== req.admin!.teamId) return reply.code(403).send({ error: "outside your team" });
       if (!(await teamExists(db, req.params.id))) return badId(reply);
       const { rows } = await db.query<{ id: string; name: string; email: string | null }>(
         "SELECT id, name, email FROM employees WHERE team_id = $1 ORDER BY lower(name), name",
@@ -830,6 +835,7 @@ export async function adminRoutes(app: FastifyInstance, { db, config }: { db: Db
       const { teamId } = req.query;
       if (teamId !== undefined) {
         if (!UUID_RE.test(teamId)) return reply.code(400).send({ error: "invalid teamId" });
+        if (!isOwner(req) && teamId !== req.admin!.teamId) return reply.code(403).send({ error: "outside your team" });
         return { rules: await loadTeamRules(db, teamId) };
       }
       return { rules: await loadGlobalRules(db) };

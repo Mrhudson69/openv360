@@ -43,7 +43,15 @@ export function decryptSecret(stored: string | null | undefined): string {
     const d = crypto.createDecipheriv("aes-256-gcm", key(), Buffer.from(ivH!, "hex"));
     d.setAuthTag(Buffer.from(tagH!, "hex"));
     return Buffer.concat([d.update(Buffer.from(ctH!, "hex")), d.final()]).toString("utf8");
-  } catch {
-    return "";
+  } catch (e) {
+    // A GCM/auth-tag failure means the value was encrypted with a different key
+    // (the key file was lost, or OPENV360_SECRET/SECRET_KEY changed). Returning
+    // "" silently would make SMTP auth fail with an empty password and no clue
+    // why — surface it loudly instead of swallowing it.
+    throw new Error(
+      "cannot decrypt a stored secret — the encryption key ($OPENV360_SECRET / $SECRET_KEY, " +
+        "else $DATA_DIR/secret.key) appears to have changed or been lost. Re-save the affected " +
+        `secret (e.g. the SMTP password). Cause: ${(e as Error).message}`,
+    );
   }
 }
