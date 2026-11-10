@@ -58,9 +58,14 @@ if (-not (Get-Process -Name 'openv360-agent' -ErrorAction SilentlyContinue)) {
 
   $action    = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$guard`""
   $atLogon   = New-ScheduledTaskTrigger -AtLogOn
-  $repeat    = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 2) -RepetitionDuration ([TimeSpan]::MaxValue)
+  # NOTE: [TimeSpan]::MaxValue serialises to an out-of-range duration that
+  # PowerShell 7 / Task Scheduler reject ("value ... out of range"), which made
+  # the whole task fail to register — so the agent never restarted at logon after
+  # a reboot. Use a large but valid duration (~10 years) for effectively-indefinite
+  # repetition instead; the AtLogon trigger re-arms it each session anyway.
+  $repeat    = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 2) -RepetitionDuration (New-TimeSpan -Days 3650)
   $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew
-  Register-ScheduledTask -TaskName "openv360" -Action $action -Trigger @($atLogon, $repeat) -Settings $settings -Force | Out-Null
+  Register-ScheduledTask -TaskName "openv360" -Action $action -Trigger @($atLogon, $repeat) -Settings $settings -Force -ErrorAction Stop | Out-Null
   Say "Installed background task (starts at logon, restarts if closed)"
 } catch {
   Warn "could not register the background task ($($_.Exception.Message)); openv360 will still start now"
