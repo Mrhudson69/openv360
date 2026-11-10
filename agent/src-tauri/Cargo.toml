@@ -1,6 +1,6 @@
 [package]
 name = "openv360-agent"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 description = "openv360 desktop agent"
 license = "MIT"
