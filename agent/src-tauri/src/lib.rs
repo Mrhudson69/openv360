@@ -588,12 +588,12 @@ fn spawn_loops(app: AppHandle) {
         let agent = a.state::<Arc<Agent>>().inner().clone();
         loop {
             tokio::time::sleep(Duration::from_secs(5)).await;
-            let (enabled, interval, idle_threshold_ms) = {
+            let (enabled, interval, stop_idle_ms) = {
                 let c = agent.config.lock().unwrap();
                 (
                     c.settings.screenshots_enabled,
                     c.settings.screenshot_interval_sec,
-                    c.settings.idle_threshold_sec as i64 * 1000,
+                    c.settings.screenshot_idle_stop_sec as i64 * 1000,
                 )
             };
             if !agent.tracking_active() || !enabled {
@@ -609,13 +609,15 @@ fn spawn_loops(app: AppHandle) {
             if now < next {
                 continue;
             }
-            // Due — but only capture while the user is active. Capturing a
-            // locked/idle screen is useless, and (the real bug) rescheduling a
-            // full interval after an idle slot skips the work window that follows.
-            // So if the user is idle now, DON'T reschedule: re-check every 5 s and
-            // capture the instant they're active again, right after the due time.
-            // A live meeting counts as active (last_idle_ms is published as 0).
-            if agent.last_idle_ms.load(std::sync::atomic::Ordering::Relaxed) >= idle_threshold_ms {
+            // Due. Capture every interval regardless of whether the user is
+            // actively working or briefly idle — EXCEPT once they've been idle
+            // beyond `screenshot_idle_stop_sec`, when we pause capturing until
+            // they're active again (don't reschedule, so the first active moment
+            // after the due time captures right away). 0 = never pause. A live
+            // meeting counts as active (last_idle_ms is published as 0).
+            if stop_idle_ms > 0
+                && agent.last_idle_ms.load(std::sync::atomic::Ordering::Relaxed) >= stop_idle_ms
+            {
                 continue;
             }
             match agent.take_screenshot().await {

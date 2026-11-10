@@ -8,7 +8,7 @@ export interface SessionEvent { id: string; kind: "clock_in" | "clock_out"; at: 
 export interface Shot { id: string; takenAt: number }
 export interface Totals { activeMs: number; idleMs: number; productiveMs: number; unproductiveMs: number; neutralMs: number; firstSeen: number | null; lastSeen: number | null }
 export interface DayData { employee: Pick<Employee, "id" | "name" | "email" | "team">; segments: Segment[]; sessions: SessionEvent[]; screenshots: Shot[]; totals: Totals; apps: { app: string; category: Category; ms: number }[] }
-export interface Settings { orgName: string; screenshotsEnabled: boolean; screenshotIntervalSec: number; screenshotBlur: boolean; idleThresholdSec: number; trackWindowTitles: boolean; workStartMin: number; workEndMin: number; workdays: number; brandPrimary: string; brandAccent: string; retentionDays: number; reportSchedule: "off" | "daily" | "weekly"; reportHour: number; reportWeekday: number; reportRecipients: string; reportTzOffsetMin: number; agentAutoUpdate?: boolean }
+export interface Settings { orgName: string; screenshotsEnabled: boolean; screenshotIntervalSec: number; screenshotBlur: boolean; idleThresholdSec: number; screenshotIdleStopSec: number; trackWindowTitles: boolean; workStartMin: number; workEndMin: number; workdays: number; brandPrimary: string; brandAccent: string; retentionDays: number; reportSchedule: "off" | "daily" | "weekly"; reportHour: number; reportWeekday: number; reportRecipients: string; reportTzOffsetMin: number; agentAutoUpdate?: boolean }
 
 // Overview
 export interface Overview {

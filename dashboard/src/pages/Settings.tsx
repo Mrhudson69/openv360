@@ -125,6 +125,14 @@ export function SettingsPage() {
           </div>
         </label>
         <Toggle label="Blur screenshots" hint="Blur on the device before upload, so text is unreadable." checked={s.screenshotBlur} disabled={!s.screenshotsEnabled} onChange={(v) => set("screenshotBlur", v)} />
+        <label className={s.screenshotsEnabled ? "" : "disabled"}>
+          Pause when idle for
+          <div className="row">
+            <input type="number" min={0} max={1440} value={Math.round(s.screenshotIdleStopSec / 60)} disabled={!s.screenshotsEnabled}
+              onChange={(e) => set("screenshotIdleStopSec", Math.min(1440, Math.max(0, Number(e.target.value) || 0)) * 60)} />
+            <span className="muted">minutes — screenshots keep going while working or briefly idle, and pause after this much continuous idle (resuming when active). 0 = never pause.</span>
+          </div>
+        </label>
 
         <h2 className="card-title">Activity</h2>
         <label>

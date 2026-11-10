@@ -6,6 +6,7 @@ export interface Settings {
   screenshotIntervalSec: number;
   screenshotBlur: boolean;
   idleThresholdSec: number;
+  screenshotIdleStopSec: number;
   trackWindowTitles: boolean;
   workStartMin: number;
   workEndMin: number;
@@ -26,6 +27,7 @@ interface Row {
   screenshot_interval_sec: number;
   screenshot_blur: boolean;
   idle_threshold_sec: number;
+  screenshot_idle_stop_sec: number;
   track_window_titles: boolean;
   work_start_min: number;
   work_end_min: number;
@@ -46,6 +48,7 @@ const toSettings = (r: Row): Settings => ({
   screenshotIntervalSec: r.screenshot_interval_sec,
   screenshotBlur: r.screenshot_blur,
   idleThresholdSec: r.idle_threshold_sec,
+  screenshotIdleStopSec: r.screenshot_idle_stop_sec,
   trackWindowTitles: r.track_window_titles,
   workStartMin: r.work_start_min,
   workEndMin: r.work_end_min,
@@ -71,6 +74,7 @@ const COLUMNS: Record<keyof Settings, keyof Row> = {
   screenshotIntervalSec: "screenshot_interval_sec",
   screenshotBlur: "screenshot_blur",
   idleThresholdSec: "idle_threshold_sec",
+  screenshotIdleStopSec: "screenshot_idle_stop_sec",
   trackWindowTitles: "track_window_titles",
   workStartMin: "work_start_min",
   workEndMin: "work_end_min",
@@ -108,6 +112,7 @@ export const settingsPatchSchema = {
     screenshotIntervalSec: { type: "integer", minimum: 60, maximum: 86400 },
     screenshotBlur: { type: "boolean" },
     idleThresholdSec: { type: "integer", minimum: 30, maximum: 7200 },
+    screenshotIdleStopSec: { type: "integer", minimum: 0, maximum: 86400 },
     trackWindowTitles: { type: "boolean" },
     workStartMin: { type: "integer", minimum: 0, maximum: 1439 },
     workEndMin: { type: "integer", minimum: 0, maximum: 1439 },
