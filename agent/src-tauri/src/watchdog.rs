@@ -14,11 +14,11 @@
 //!
 //! Coordination is done through small files in the data dir (no OS-specific
 //! process APIs, so it behaves the same on Windows, Linux and macOS):
-//!   - `agent.beat`    — the agent touches it every couple of seconds.
-//!   - `watchdog.beat` — the watchdog touches it; its absence lets the agent tell
-//!                       the watchdog died.
-//!   - `standdown`     — a recent mtime means "a controlled stop is in progress,
-//!                       do not respawn" (written on update + uninstall).
+//! - `agent.beat` — the agent touches it every couple of seconds.
+//! - `watchdog.beat` — the watchdog touches it; its absence lets the agent tell
+//!   the watchdog died.
+//! - `standdown` — a recent mtime means "a controlled stop is in progress, do
+//!   not respawn" (written on update + uninstall).
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
