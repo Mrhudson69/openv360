@@ -107,11 +107,19 @@ export async function agentRoutes(app: FastifyInstance, { db, config }: { db: Db
 
     r.get("/api/agent/settings", async () => getSettings(db));
 
-    r.get("/api/agent/me", async (req) => ({
-      employee: { id: req.device!.employeeId, name: req.device!.employeeName },
-      settings: await getSettings(db),
-      command: req.device!.command,
-    }));
+    r.get("/api/agent/me", async (req) => {
+      const d = req.device!;
+      // One-shot delivery: clear the flag so the agent updates once, not every poll.
+      if (d.updateRequested) {
+        await db.query("UPDATE devices SET update_requested = false WHERE id = $1", [d.deviceId]);
+      }
+      return {
+        employee: { id: d.employeeId, name: d.employeeName },
+        settings: await getSettings(db),
+        command: d.command,
+        updateRequested: d.updateRequested,
+      };
+    });
 
     r.post<{ Body: { events: { id: string; kind: string; at: number }[] } }>(
       "/api/agent/sessions",

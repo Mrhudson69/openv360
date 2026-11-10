@@ -64,6 +64,7 @@ export interface DeviceAuth {
   employeeId: string;
   employeeName: string;
   command: "none" | "stop" | "uninstall";
+  updateRequested: boolean;
 }
 
 declare module "fastify" {
@@ -125,11 +126,11 @@ export function requireDevice(db: Db) {
   return async (req: FastifyRequest, reply: FastifyReply) => {
     const token = bearer(req);
     if (!token) return reply.code(401).send({ error: "device token required" });
-    const { rows } = await db.query<{ device_id: string; employee_id: string; employee_name: string; command: DeviceAuth["command"] }>(
+    const { rows } = await db.query<{ device_id: string; employee_id: string; employee_name: string; command: DeviceAuth["command"]; update_requested: boolean }>(
       `UPDATE devices d SET last_seen_at = $2
        FROM employees e
        WHERE d.token_hash = $1 AND d.revoked_at IS NULL AND e.id = d.employee_id
-       RETURNING d.id AS device_id, d.employee_id, e.name AS employee_name, d.command`,
+       RETURNING d.id AS device_id, d.employee_id, e.name AS employee_name, d.command, d.update_requested`,
       [hashToken(token), Date.now()],
     );
     if (!rows[0]) return reply.code(401).send({ error: "device not enrolled or revoked" });
@@ -138,6 +139,7 @@ export function requireDevice(db: Db) {
       employeeId: rows[0].employee_id,
       employeeName: rows[0].employee_name,
       command: rows[0].command,
+      updateRequested: rows[0].update_requested,
     };
   };
 }

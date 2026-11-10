@@ -52,7 +52,12 @@ core-graphics = "0.23"
 core-foundation = "0.9"
 
 [profile.release]
-lto = true
+# Tuned for fast CI builds while keeping the binary small. `thin` LTO links far
+# faster than fat LTO (`true`) for nearly the same size/perf, and 16 codegen
+# units parallelise the final crate's codegen (release defaults to 1, which is
+# single-threaded and slow). Net: a large cut in build time at a negligible cost.
+lto = "thin"
+codegen-units = 16
 opt-level = "s"
 strip = true
 # Any panic aborts the process instead of silently killing one async task and

@@ -594,6 +594,18 @@ export async function adminRoutes(app: FastifyInstance, { db, config }: { db: Db
     r.post<{ Params: { id: string } }>("/api/devices/:id/resume", setCommand("none"));
     r.post<{ Params: { id: string } }>("/api/devices/:id/uninstall", setCommand("uninstall"));
 
+    // One-shot "update now": the agent runs an update check on its next poll.
+    // Separate from `command` so it doesn't disturb a paused/uninstalling device.
+    r.post<{ Params: { id: string } }>("/api/devices/:id/update", async (req, reply) => {
+      if (!UUID_RE.test(req.params.id)) return badId(reply);
+      const { rowCount } = await db.query(
+        "UPDATE devices SET update_requested = true WHERE id = $1 AND revoked_at IS NULL",
+        [req.params.id],
+      );
+      if (!rowCount) return badId(reply);
+      return { ok: true };
+    });
+
     r.get<{ Params: { id: string }; Querystring: { date?: string; tzOffsetMin?: string } }>(
       "/api/employees/:id/day",
       async (req, reply) => {

@@ -49,6 +49,16 @@ export function DeviceMenu(props: { device: Device; onChanged: () => void; onErr
   // Pause / resume.
   if (d.command === "stop") actions.push({ label: "Resume tracking", run: post(`/api/devices/${d.id}/resume`) });
   else actions.push({ label: "Pause tracking", run: post(`/api/devices/${d.id}/stop`) });
+  // Update now — the agent runs an update check on its next check-in.
+  if (d.command !== "uninstall") {
+    actions.push({
+      label: "Update agent now",
+      run: post(`/api/devices/${d.id}/update`),
+      confirm: online
+        ? `Tell ${d.hostname} to update now? It checks for a newer agent on its next check-in (within a minute) and installs it if one is available.`
+        : `${d.hostname} is offline. The update is queued and runs when it next connects. (Agents also update themselves automatically.)`,
+    });
+  }
   // Uninstall, or cancel a pending uninstall.
   if (d.command === "uninstall") {
     actions.push({ label: "Cancel pending uninstall", run: post(`/api/devices/${d.id}/resume`) });
