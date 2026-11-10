@@ -13,6 +13,10 @@ pub struct Settings {
     pub screenshot_interval_sec: u64,
     pub screenshot_blur: bool,
     pub idle_threshold_sec: u64,
+    /// Pause screenshots after the user has been idle this long (seconds);
+    /// capture resumes when they're active again. 0 = never pause.
+    #[serde(default = "default_idle_stop")]
+    pub screenshot_idle_stop_sec: u64,
     pub track_window_titles: bool,
     /// Optional remote kill-switch for agent self-update. When the server sends
     /// `agentAutoUpdate: false` the agent won't update even if locally enabled.
@@ -28,6 +32,7 @@ impl Default for Settings {
             screenshot_interval_sec: 600,
             screenshot_blur: false,
             idle_threshold_sec: 300,
+            screenshot_idle_stop_sec: default_idle_stop(),
             track_window_titles: true,
             agent_auto_update: None,
         }
@@ -63,6 +68,10 @@ pub struct Config {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_idle_stop() -> u64 {
+    600
 }
 
 impl Default for Config {
