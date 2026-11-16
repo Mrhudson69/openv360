@@ -48,7 +48,7 @@ xcap = "0.9.9"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 # Live Screen-Recording permission probe (CGPreflight caches per-process).
-core-graphics = "0.23"
+core-graphics = "0.25"
 core-foundation = "0.9"
 
 [profile.release]
