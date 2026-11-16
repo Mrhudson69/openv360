@@ -13,7 +13,7 @@
     "test": "vitest run --no-file-parallelism"
   },
   "dependencies": {
-    "@fastify/cors": "^11.4.1",
+    "@fastify/cors": "^11.4.3",
     "@fastify/multipart": "^10.1.8",
     "@fastify/static": "^10.1.10",
     "fastify": "^5.12.8",
