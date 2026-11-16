@@ -3423,7 +3423,7 @@ dependencies = [
  "anyhow",
  "ashpd",
  "chrono",
- "core-foundation 0.9.4",
+ "core-foundation 0.10.1",
  "core-graphics 0.23.2",
  "gethostname",
  "hex",
